@@ -21,12 +21,19 @@ resulting Hubbard Stratonovich fiels is real.
 To reduce computational cost a specialized `BlockDiagonal` representation of the
 greens matrix is used. 
 """
+const HubbardBiDistribution = (Int8(-1), Int8(1),Int8(-2), Int8(2))
+
+@inline function Base.rand(::Type{DQMC}, m::HubbardModelBi, nslices::Int)
+    rand(HubbardBiDistribution, length(m.l), nslices)
+end
+
+
 @with_kw_noshow struct HubbardModelBi{LT<:AbstractLattice} <: HubbardModel
     # user optional
     U::Float64 = 1.0
     @assert U >= 0. "U must be positive."
     t::Float64 = 1.0
-
+    a::Float64 = 0.8 # coeficient of the \lambda_1 term.
     # mandatory (this or (L, dims))
     l::LT
 
@@ -112,15 +119,26 @@ This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, model::HubbardModelBi,
             result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
-    dtau = mc.parameters.delta_tau
+    Δτ = mc.parameters.delta_tau
+    a = model.a 
+    b  = sqrt(a/(1-a))
+    x  = exp(0.5Δτ * model.U)
+    α1 = acosh(x-(1/sqrt(2)/b)*(x^2-1))
+    α2 = acosh(x+(b/sqrt(2))*(x^2-1))/2 #devide by 2 because  conf[i, slice] of \lambda_2 was labeled with a 2.
     lambda = acosh(exp(0.5 * model.U * dtau))
     N = length(lattice(model))
     
     @inbounds for i in 1:N
-        result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
+        if abs(conf[i, slice])==1
+            result.diag[i] = a*exp(sign(power) * α1 * conf[i, slice])
+        else 
+            result.diag[i] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
     end
     @inbounds for i in 1:N
-        result.diag[i+N] = exp(-sign(power) * lambda * conf[i, slice])
+        if abs(conf[i, slice])==1
+            result.diag[i+N] = a*exp(sign(power) * α1 * conf[i, slice])
+        else 
+            result.diag[i+N] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
     end
     nothing
     end 
@@ -140,7 +158,7 @@ This is a performance critical method.
 
     #α = acosh(exp(0.5Δτ * model.U))
     # not sure it is the write place to do this
-    a  = 0.8
+    a  = model.a
     b  = sqrt(a/(1-a))
     x  = exp(0.5Δτ * model.U)
     α1 = acosh(x-(1/sqrt(2)/b)*(x^2-1))
