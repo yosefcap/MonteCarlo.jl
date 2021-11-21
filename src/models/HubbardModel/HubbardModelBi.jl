@@ -61,9 +61,9 @@ end
 # cosmetics
 import Base.summary
 import Base.show
-Base.summary(model::HubbardModelBi) = "repulsive Hubbard model"
+Base.summary(model::HubbardModelBi) = "repulsive Hubbard model - Bilayer" 
 function Base.show(io::IO, model::HubbardModelBi)
-    print(io, "repulsive Hubbard model, $(length(model.l)) sites")
+    print(io, "repulsive Hubbard model bilayer, $(length(model.l)) sites")
 end
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModelBi) = print(io, model)
 
@@ -158,15 +158,21 @@ This is a performance critical method.
 
     #α = acosh(exp(0.5Δτ * model.U))
     # not sure it is the write place to do this
-    a  = model.a
+    a  = [model.a , 1.0-model.a]
     b  = sqrt(a/(1-a))
     x  = exp(0.5Δτ * model.U)
-    α1 = acosh(x-(1/sqrt(2)/b)*(x^2-1))
-    α2 = acosh(x+(b/sqrt(2))*(x^2-1))
+    α = [acosh(x-(1/sqrt(2)/b)*(x^2-1)) , acosh(x+(b/sqrt(2))*(x^2-1))]
     
-    ΔE_Boson = -2.0α * conf[i, slice]
-    Δ[1, 1] = exp(ΔE_Boson) - 1.0
-    Δ[2, 2] = exp(-ΔE_Boson) - 1.0
+    old_conf = conf[i, slice]
+    new_conf = old_conf==-1 ? rand((Int8(1),Int8(-2),Int8(2))) :
+               old_conf==1  ? rand((Int8(-1),Int8(-2),Int8(2))) :
+               old_conf==-2 ? rand((Int8(-1),Int8(1),Int8(2))) :
+                                    rand((Int8(-1),Int8(1),Int8(-2)))
+            
+    ΔE_Boson = α[abs(new_conf)]*sign(new_conf) - α[abs(old_conf)]*sign(old_conf)
+    co_ratio = a[abs(new_conf)] / a[abs(old_conf)]
+    Δ[1, 1] = co_ratio*exp(ΔE_Boson) - 1.0
+    Δ[2, 2] = co_ratio*exp(-ΔE_Boson) - 1.0
 
     # Unrolled R = I + Δ * (I - G)
     R[1, 1] = 1.0 + Δ[1, 1] * (1.0 - G[i, i])
@@ -176,11 +182,11 @@ This is a performance critical method.
 
     # Calculate det of 2x2 Matrix
     # det() vs unrolled: 206ns -> 2.28ns
-    detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
+    detratio =  R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
 
     # There is no bosonic part (exp(-ΔE_Boson)) to the partition function.
     # Therefore pass 0.0
-    return detratio, 0.0, nothing
+    return detratio, 0.0, new_conf #nothing
 end
 
 @inline @inbounds @bm function accept_local!(
