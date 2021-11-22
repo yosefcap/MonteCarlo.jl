@@ -26,7 +26,7 @@ imaginary time slice.
     # @inbounds for i in rand(1:N, N)
     accepted = 0
     @inbounds for i in 1:N
-        detratio, new_conf, ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
+        detratio,  ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
 
         if mc.parameters.check_sign_problem
             if abs(imag(detratio)) > 1e-6
