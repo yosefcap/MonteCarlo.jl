@@ -101,7 +101,7 @@ export save, load, resume!
 
 export reset!
 export run!, resume!, replay!
-export Model, IsingModel, HubbardModel, HubbardModelAttractive, HubbardModelRepulsive
+export Model, IsingModel, HubbardModel, HubbardModelAttractive, HubbardModelRepulsive, HubbardModelBi
 export MonteCarloFlavor, MC, DQMC
 export greens, greens!, lattice, model, parameters
 
