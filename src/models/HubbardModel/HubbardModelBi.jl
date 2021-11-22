@@ -21,11 +21,7 @@ resulting Hubbard Stratonovich fiels is real.
 To reduce computational cost a specialized `BlockDiagonal` representation of the
 greens matrix is used. 
 """
-const HubbardBiDistribution = (Int8(-1), Int8(1),Int8(-2), Int8(2))
 
-@inline function Base.rand(::Type{DQMC}, m::HubbardModelBi, nslices::Int)
-    rand(HubbardBiDistribution, length(m.l), nslices)
-end
 
 
 @with_kw_noshow struct HubbardModelBi{LT<:AbstractLattice} <: HubbardModel
@@ -75,6 +71,11 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelBi) = print(io, model)
 hopping_matrix_type(::Type{DQMC}, ::HubbardModelBi) = BlockDiagonal{Float64, 2, Matrix{Float64}}
 greens_matrix_type( ::Type{DQMC}, ::HubbardModelBi) = BlockDiagonal{Float64, 2, Matrix{Float64}}
 
+const HubbardBiDistribution = (Int8(-1), Int8(1),Int8(-2), Int8(2))
+
+@inline function Base.rand(::Type{DQMC}, m::HubbardModelBi, nslices::Int)
+    rand(HubbardBiDistribution, length(m.l), nslices)
+end
 
 
 """
