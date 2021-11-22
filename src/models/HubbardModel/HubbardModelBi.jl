@@ -122,7 +122,7 @@ This is a performance critical method.
             result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
     Δτ = mc.parameters.delta_tau
     a = [model.a 1.0-model.a] 
-    b  = sqrt(a/(1-a))
+    b  = sqrt(model.a/(1-model.a))
     x  = exp(0.5Δτ * model.U)
     α = [acosh(x-(1/sqrt(2)/b)*(x^2-1)), acosh(x+(b/sqrt(2))*(x^2-1))/2] #devide by 2 because  conf[i, slice] of \lambda_2 was labeled with a 2.
     #lambda = acosh(exp(0.5 * model.U * dtau))
@@ -163,7 +163,7 @@ This is a performance critical method.
     #α = acosh(exp(0.5Δτ * model.U))
     # not sure it is the write place to do this
     a  = [model.a , 1.0-model.a]
-    b  = sqrt(a/(1-a))
+    b  = sqrt(model.a/(1-model.a))
     x  = exp(0.5Δτ * model.U)
     α = [acosh(x-(1/sqrt(2)/b)*(x^2-1)) , acosh(x+(b/sqrt(2))*(x^2-1))]
     
@@ -186,7 +186,7 @@ This is a performance critical method.
 
     # Calculate det of 2x2 Matrix
     # det() vs unrolled: 206ns -> 2.28ns
-    detratio =  R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
+    detratio =  (R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1])^2
 
     # There is no bosonic part (exp(-ΔE_Boson)) to the partition function.
     # Therefore pass 0.0
@@ -211,7 +211,8 @@ end
     # inverting R in-place, using that R is 2x2, i.e.:
     # M^-1 = [a b; c d]^-1 = 1/det(M) [d -b; -c a]
     @bm "accept_local (inversion)" begin
-        inv_div = 1.0 / detratio
+        detratio2 =  R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
+        inv_div = 1.0 / detratio2
         R[1, 2] = -R[1, 2] * inv_div
         R[2, 1] = -R[2, 1] * inv_div
         x = R[1, 1]
