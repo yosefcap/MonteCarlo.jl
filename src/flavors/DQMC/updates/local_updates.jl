@@ -26,7 +26,7 @@ imaginary time slice.
     # @inbounds for i in rand(1:N, N)
     accepted = 0
     @inbounds for i in 1:N
-        detratio, ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
+        detratio, new_conf, ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
 
         if mc.parameters.check_sign_problem
             if abs(imag(detratio)) > 1e-6
@@ -43,14 +43,14 @@ imaginary time slice.
                     real(detratio)
                 )
             end
-        end
+        end 
         p = real(exp(- ΔE_boson) * detratio)
 
         # Gibbs/Heat bath
         # p = p / (1.0 + p)
         # Metropolis
         if p > 1 || rand() < p
-            accept_local!(mc, m, i, current_slice(mc), conf(mc), detratio, ΔE_boson, passthrough)
+            accept_local!(mc, m, i, current_slice(mc), conf(mc), detratio, new_conf, ΔE_boson, passthrough)
             accepted += 1
         end
     end
