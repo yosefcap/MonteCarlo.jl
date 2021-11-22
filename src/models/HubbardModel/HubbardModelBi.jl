@@ -134,12 +134,14 @@ This is a performance critical method.
             result.diag[i] = a*exp(sign(power) * α1 * conf[i, slice])
         else 
             result.diag[i] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
+        end
     end
     @inbounds for i in 1:N
         if abs(conf[i, slice])==1
             result.diag[i+N] = a*exp(sign(power) * α1 * conf[i, slice])
         else 
             result.diag[i+N] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
+        end
     end
     nothing
     end 
