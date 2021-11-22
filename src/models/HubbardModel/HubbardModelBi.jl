@@ -121,27 +121,28 @@ This is a performance critical method.
 @inline @bm function interaction_matrix_exp!(mc::DQMC, model::HubbardModelBi,
             result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
     Δτ = mc.parameters.delta_tau
-    a = model.a 
+    a = [model.a 1.0-model.a] 
     b  = sqrt(a/(1-a))
     x  = exp(0.5Δτ * model.U)
-    α1 = acosh(x-(1/sqrt(2)/b)*(x^2-1))
-    α2 = acosh(x+(b/sqrt(2))*(x^2-1))/2 #devide by 2 because  conf[i, slice] of \lambda_2 was labeled with a 2.
-    lambda = acosh(exp(0.5 * model.U * dtau))
+    α = [acosh(x-(1/sqrt(2)/b)*(x^2-1)), acosh(x+(b/sqrt(2))*(x^2-1))/2] #devide by 2 because  conf[i, slice] of \lambda_2 was labeled with a 2.
+    #lambda = acosh(exp(0.5 * model.U * dtau))
     N = length(lattice(model))
     
     @inbounds for i in 1:N
-        if abs(conf[i, slice])==1
-            result.diag[i] = a*exp(sign(power) * α1 * conf[i, slice])
-        else 
-            result.diag[i] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
-        end
+        result.diag[i] = a[abs(conf[i, slice])]*exp(sign(power) * α[abs(conf[i, slice])] * conf[i, slice])
+       # if abs(conf[i, slice])==1
+        #    result.diag[i] = a*exp(sign(power) * α1 * conf[i, slice])
+       # else 
+        #    result.diag[i] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
+        #end
     end
     @inbounds for i in 1:N
-        if abs(conf[i, slice])==1
-            result.diag[i+N] = a*exp(sign(power) * α1 * conf[i, slice])
-        else 
-            result.diag[i+N] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
-        end
+        result.diag[i+N] = a[abs(conf[i, slice])]*exp(sign(power) * α[abs(conf[i, slice])] * conf[i, slice])
+        #if abs(conf[i, slice])==1
+         #   result.diag[i+N] = a*exp(sign(power) * α1 * conf[i, slice])
+        #else 
+         #   result.diag[i+N] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
+        #end
     end
     nothing
     end 
