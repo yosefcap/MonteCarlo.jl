@@ -187,12 +187,12 @@ This is a performance critical method.
 
     # There is no bosonic part (exp(-ΔE_Boson)) to the partition function.
     # Therefore pass 0.0
-    return detratio, new_conf, 0.0, nothing
+    return detratio,  0.0, new_conf #,nothing
 end
 
 @inline @inbounds @bm function accept_local!(
         mc::DQMC, model::HubbardModelBi, i::Int, slice::Int, 
-        conf::HubbardConf, detratio, new_conf, args...
+        conf::HubbardConf, detratio, args...
     )
 
     @bm "accept_local (init)" begin
@@ -261,7 +261,7 @@ end
         end
 
         # Always
-        conf[i, slice] = new_conf
+        conf[i, slice] = args[2]
     end
 
     nothing
