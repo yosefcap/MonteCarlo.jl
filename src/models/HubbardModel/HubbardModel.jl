@@ -61,3 +61,4 @@ end
 
 include("HubbardModelAttractive.jl")
 include("HubbardModelRepulsive.jl")
+include("HubbardModelBi.jl")
