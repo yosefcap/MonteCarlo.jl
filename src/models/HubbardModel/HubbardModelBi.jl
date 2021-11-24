@@ -130,19 +130,9 @@ This is a performance critical method.
     
     @inbounds for i in 1:N
         result.diag[i] = a[abs(conf[i, slice])]*exp(sign(power) * α[abs(conf[i, slice])] * conf[i, slice])
-       # if abs(conf[i, slice])==1
-        #    result.diag[i] = a*exp(sign(power) * α1 * conf[i, slice])
-       # else 
-        #    result.diag[i] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
-        #end
     end
     @inbounds for i in 1:N
         result.diag[i+N] = a[abs(conf[i, slice])]*exp(sign(power) * α[abs(conf[i, slice])] * conf[i, slice])
-        #if abs(conf[i, slice])==1
-         #   result.diag[i+N] = a*exp(sign(power) * α1 * conf[i, slice])
-        #else 
-         #   result.diag[i+N] = (1-a)*exp(sign(power) * α2 * conf[i, slice])
-        #end
     end
     nothing
     end 
@@ -204,7 +194,7 @@ end
         IG = model.IG
         IGR = model.IGR
         Δ = model.Δ
-        R = model.R
+        R = model.R 
         RΔ = model.RΔ
     end
 
