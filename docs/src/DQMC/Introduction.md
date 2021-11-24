@@ -9,7 +9,7 @@ using MonteCarlo
 
 model = HubbardModelAttractive(4, 2)
 dqmc = DQMC(model, beta=1.0)
-run(dqmc)
+run!(dqmc)
 ```
 
 This will set up and run a DQMC simulation at inverse temperature $\beta = 1.0$ using an attractive Hubbard model with a four by four square lattice. Note that by default no measurements are taken. 
