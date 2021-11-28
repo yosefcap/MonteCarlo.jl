@@ -45,19 +45,9 @@ function T_operator(state, spacial_dims::Int8, t::Float64)
     return state_sp , co
 end
 
-function hop(index::CartesianIndex{DIMS},dir::Int64,lr::Int64,dims::NTuple{DIMS,Int64}) where {DIMS}
-    # update index
-    if (lr==1)
-      hop_index= index[dir]==dims[dir] ? 1 : index[dir]+1
-    else
-      hop_index= index[dir]==1 ? dims[dir] : index[dir]-1
-    end
-    # generate a new CartesianIndex with updated index
-    CartesianIndex(Base.setindex(Tuple(index), hop_index, dir))
-
+function U_operator(state, spacial_dims::Int8, t::Float64)
+    
 end
-
-
 
 function create(state ,index::CartesianIndex{DIMS}) where {DIMS}
     # creation operator at (x,y,spin,species)
@@ -103,4 +93,17 @@ function dec2bin(x::Int64,pad::Int64)
     end
     return bin
 end
+
+function hop(index::CartesianIndex{DIMS},dir::Int64,lr::Int64,dims::NTuple{DIMS,Int64}) where {DIMS}
+    # update index
+    if (lr==1)
+      hop_index= index[dir]==dims[dir] ? 1 : index[dir]+1
+    else
+      hop_index= index[dir]==1 ? dims[dir] : index[dir]-1
+    end
+    # generate a new CartesianIndex with updated index
+    CartesianIndex(Base.setindex(Tuple(index), hop_index, dir))
+
+end
+
 
