@@ -1,3 +1,5 @@
+using Base.Cartesian
+spacial_dims=Int8(2)
 num_spin=2;
 num_species=2;
 L_x=2;
@@ -9,7 +11,39 @@ t=1.0;
 U=1.0;
 mu=1.0;
 ## TO DO - assign types to all variables and functions
-function Hamiltonian_operator()
+function T_operator(state, spacial_dims::Int8, t::Float64)
+    #hopping part of hamiltonian
+    dims = size(state)
+    state_sp=state
+    co=0
+    occupations = findall(x->x==1, state) # indices which are  occupied 
+
+    for occupation in occupations
+        for dir in 1:spacial_dims
+            for lr in 1:2
+                index_i = occupations[occupation]
+                index_j = hop(index_i,dir,lr,dims) # TO DO -find how to write it for arbitrary dimension
+                state_f , co_temp = hopping_operatr(state,index_i,index_j)
+                if co_temp != 0
+                    push!(state_sp,state_f)
+                    push!(co,-t)
+                end
+            end
+        end
+    end
+    return state_sp , co
+end
+
+
+function hop(index::CartesianIndex{DIMS},dir::Int64,lr::Int64,dims::NTuple{DIMS,Int64}) where {DIMS}
+    # update index
+    if (lr==1)
+      hop_index= index[dir]==dims[dir] ? 1 : index[dir]+1
+    else
+      hop_index= index[dir]==1 ? dims[dir] : index[dir]-1
+    end
+    # generate a new CartesianIndex with updated index
+    CartesianIndex(Base.setindex(Tuple(index), hop_index, dir))
 
 end
 
@@ -23,38 +57,38 @@ function build_states(N,L_x,L_y,num_spin,num_species)
     return states
 end
 
-function create(state ,x,y,spin,species)
+function create(state ,index::CartesianIndex{DIMS}) where {DIMS}
     # creation operator at (x,y,spin,species)
     new_state = state
     ex = 0.0  # denotes if the state was annihilated by the creation operator. 
-    if state[x,y,spin,species] == 0
-        new_state[x,y,spin,species] = 1
+    if state[index] == 0
+        new_state[index] = 1 
         ex = 1
     end
         return new_state , ex
 end
 
-function annihilate(state ,x,y,spin,species)
+function annihilate(state ,index::CartesianIndex{DIMS}) where {DIMS}
     # annihilation operator at (x,y,spin,species)
     new_state = state
     ex = 0  # denotes if the state was annihilated by the annihilation operator. 
-    if state[x,y,spin,species] == 1
-        new_state[x,y,spin,species] = 0
+    if state[index] == 1
+        new_state[index] = 0
         ex = 1
     end
         return new_state , ex
 end
 
-function hop(state_i,x_i,y_i,spin_i,species_i,x_j,y_j,spin_j,species_j)
+function hopping_operatr(state_i,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS}) where {DIMS}
     #hopping from  (x_i,y_i,spin_i,species_i) to  (x_j,y_j,spin_j,species_f)
-    state_temp , ex = annihilate(state_i, x_i,y_i,spin_i,species_i)
-    ex == 0 ? state_f = state_temp : (state_f , ex) = create(state_temp, x_j,y_j,spin_j,species_j)
+    state_temp , ex = annihilate(state_i,index_i)
+    ex == 0 ? state_f = state_temp : (state_f , ex) = create(state_temp, index_j)
     return state_f , ex   
 end
 
-function number(state,x,y,spin,species)
+function number(state,index::CartesianIndex{DIMS}) where {DIMS}
     #number operator at  (x,y,spin,species)
-    ex = state[x,y,spin,species]
+    ex = state[index]
     return state , ex # passing and returning state is unnecessary - perhaps remove
 end
 
