@@ -11,6 +11,17 @@ t=1.0;
 U=1.0;
 mu=1.0;
 ## TO DO - assign types to all variables and functions
+
+function build_states(N,L_x,L_y,num_spin,num_species)
+    # returen all states in the Fock space,  each state is reshaped to a an array of (L_x,L_y,num_spin,num_species)
+    states=zeros(N,L_x,L_y,num_spin,num_species);
+    for c=0:N-1
+        state = dec2bin(c,num_n)
+        states[c+1,:,:,:] = reshape(state , L_x,L_y,num_spin,num_species)   
+    end
+    return states
+end
+
 function T_operator(state, spacial_dims::Int8, t::Float64)
     #hopping part of hamiltonian
     dims = size(state)
@@ -22,7 +33,7 @@ function T_operator(state, spacial_dims::Int8, t::Float64)
         for dir in 1:spacial_dims
             for lr in 1:2
                 index_i = occupations[occupation]
-                index_j = hop(index_i,dir,lr,dims) # TO DO -find how to write it for arbitrary dimension
+                index_j = hop(index_i,dir,lr,dims)
                 state_f , co_temp = hopping_operatr(state,index_i,index_j)
                 if co_temp != 0
                     push!(state_sp,state_f)
@@ -33,7 +44,6 @@ function T_operator(state, spacial_dims::Int8, t::Float64)
     end
     return state_sp , co
 end
-
 
 function hop(index::CartesianIndex{DIMS},dir::Int64,lr::Int64,dims::NTuple{DIMS,Int64}) where {DIMS}
     # update index
@@ -47,15 +57,7 @@ function hop(index::CartesianIndex{DIMS},dir::Int64,lr::Int64,dims::NTuple{DIMS,
 
 end
 
-function build_states(N,L_x,L_y,num_spin,num_species)
-    # returen all states in the Fock space,  each state is reshaped to a an array of (L_x,L_y,num_spin,num_species)
-    states=zeros(N,L_x,L_y,num_spin,num_species);
-    for c=0:N-1
-        state = dec2bin(c,num_n)
-        states[c+1,:,:,:] = reshape(state , L_x,L_y,num_spin,num_species)   
-    end
-    return states
-end
+
 
 function create(state ,index::CartesianIndex{DIMS}) where {DIMS}
     # creation operator at (x,y,spin,species)
