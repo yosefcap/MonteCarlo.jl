@@ -45,8 +45,11 @@ function T_operator(state, spacial_dims::Int8, t::Float64)
     return state_sp , co
 end
 
-function U_operator(state, spacial_dims::Int8, t::Float64)
-    
+function U_operator(state, spacial_dims::Int8, U::Float64)
+    num = U*sum( (state[ntuple(k->:,spacial_dims),1,1].-state[ntuple(k->:,spacial_dims),2,1]
+    .+state[ntuple(k->:,spacial_dims),1,2].-state[ntuple(k->:,spacial_dims),2,2]).^2 )
+    return num
+
 end
 
 function create(state ,index::CartesianIndex{DIMS}) where {DIMS}
