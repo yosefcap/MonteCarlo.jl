@@ -33,6 +33,19 @@ function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_spec
     return states
 end
 
+function build_states(dims::NTuple{DIMS,Int64},Nspecies,Nspin) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
+    #dims is the spacial dimensions.
+    # returen all states in the sub-space of Fock space with Nspecies and Nspin,  each state is reshaped to a an array of dims=(L_x,L_y,num_spin,num_species)
+    num_sites=prod(dims)
+    N=2^num_sites
+    states=[];
+    for c in 0:N-1
+        state = dec2bin(c,num_n)
+        push!(states,reshape(state , dims...))
+    end
+    return states
+end
+
 function T_operator(state, spacial_dims::Int8, t::Float64)
     #hopping part of hamiltonian
     dims = size(state)
