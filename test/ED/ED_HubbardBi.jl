@@ -11,13 +11,16 @@ t=1.0;
 U=1.0;
 mu=1.0;
 ## TO DO - assign types to all variables and functions
-
-function build_states(N,L_x,L_y,num_spin,num_species)
+function hamiltonian_sub(t::Float64, U::Float64,μ::Float64,N::Int64,S_z::Int64)
+    
+    
+end
+function build_states(N,L_x,L_y,num_species,num_spin)
     # returen all states in the Fock space,  each state is reshaped to a an array of (L_x,L_y,num_spin,num_species)
-    states=zeros(N,L_x,L_y,num_spin,num_species);
+    states=zeros(N,L_x,L_y,num_species,num_spin);
     for c=0:N-1
         state = dec2bin(c,num_n)
-        states[c+1,:,:,:] = reshape(state , L_x,L_y,num_spin,num_species)   
+        states[c+1,:,:,:] = reshape(state , L_x,L_y,num_species,num_spin)   
     end
     return states
 end
@@ -46,8 +49,7 @@ function T_operator(state, spacial_dims::Int8, t::Float64)
 end
 
 function U_operator(state, spacial_dims::Int8, U::Float64)
-    num = U*sum( (state[ntuple(k->:,spacial_dims),1,1].-state[ntuple(k->:,spacial_dims),2,1]
-    .+state[ntuple(k->:,spacial_dims),1,2].-state[ntuple(k->:,spacial_dims),2,2]).^2 )
+    num = U*sum( sum(state[ntuple(k->:,spacial_dims+1),1].-state[ntuple(k->:,spacial_dims+1),2] ,dims=spacial_dims+1 ).^2 )
     return num
 
 end
