@@ -20,8 +20,8 @@ function sub_number(states,Nspecies,Nspin) #TO DO - Nspecies\Nspin are tuples wi
     for state in states
 
 end
-function hamiltonian_sub(t::Float64, U::Float64,μ::Float64,N::Int64,S_z::Int64)
-        
+function hamiltonian_sub(dims::NTuple{DIMS,Int64},Num::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
+   states =  build_states(dims,Num)
 end
 function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
     # returen all states in the Fock space,  each state is reshaped to a an array of dims=(L_x,L_y,num_spin,num_species)
@@ -35,16 +35,23 @@ function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_spec
     return states
 end
 
-function build_states(dims::NTuple{DIMS,Int64},Nspecies,Nspin) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
-    #dims is the spacial dimensions.
-    # returen all states in the sub-space of Fock space with Nspecies and Nspin,  each state is reshaped to a an array of dims=(L_x,L_y,num_spin,num_species)
+function build_states(dims::NTuple{DIMS,Int64},Num) where {DIMS}
+    #Num is a vector of  number operators for the different types of electrons (classified by their specie and spin)
+    #dims is a vector of the spacial dimensions.
+    # returen all states in the sub-space of the Fock space 
     num_sites=prod(dims) 
-    states=[]
-    for Nsp in Nspecies
+    states=[] # TO DO -set type to integer
+    for Nsp in Num
         st = [ones(Int8,Nsp);zeros(Int8,num_sites-Nsp)]
-        push!(states,unique(permutations(st) ))
+        bit_combs=unique(permutations(st) )
+        num_comb = [] # TO DO -set type to integer
+        for bit_comb in bit_combs 
+            push!(num_comb,packbits(bit_comb)  )
+        end
+        push!(states,num_comb)
     end
-    return states
+    states_comb = collect(Iterators.product(states... ))
+    return states_comb
 end
 
 function T_operator(state, spacial_dims::Int8, t::Float64)
