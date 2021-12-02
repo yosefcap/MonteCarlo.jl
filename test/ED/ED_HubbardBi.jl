@@ -54,6 +54,12 @@ function build_states(dims::NTuple{DIMS,Int64},Num) where {DIMS}
     return states_comb
 end
 
+function bin_states(state,dims::NTuple{DIMS,Int64},Nspecies,Nspin) where {DIMS}
+     bs=zeros(Int8,dims...,Nspecies,Nspin)
+     
+
+end
+
 function T_operator(state, spacial_dims::Int8, t::Float64)
     #hopping part of hamiltonian
     dims = size(state)
