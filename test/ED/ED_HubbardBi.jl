@@ -18,7 +18,7 @@ function sub_number(states,Nspecies,Nspin) #TO DO - Nspecies\Nspin are tuples wi
     #get the sub-space of the fock space with N electrons
     sub_states = []
     for state in states
-
+ 
 end
 function hamiltonian_sub(dims::NTuple{DIMS,Int64},Num::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
    states =  build_states(dims,Num)
@@ -56,9 +56,15 @@ end
 
 function bin_states(state,dims::NTuple{DIMS,Int64},Nspecies,Nspin) where {DIMS}
      bs=zeros(Int8,dims...,Nspecies,Nspin)
-     
-
+     for ns in 1:Nspecies
+         for np in 1:Nspin
+            bs[ntuple(k->:,length(dims)),ns,np]=reshape(bitarray(state[ns+(np-1)*Nspecies],prod(dims)),dims)
+         end
+    end
+    return bs
 end
+
+
 
 function T_operator(state, spacial_dims::Int8, t::Float64)
     #hopping part of hamiltonian
