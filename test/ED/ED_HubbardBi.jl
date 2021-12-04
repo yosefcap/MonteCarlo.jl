@@ -14,14 +14,15 @@ U=1.0;
 mu=1.0;
 ## TO DO - assign types to all variables and functions
 
-function sub_number(states,Nspecies,Nspin) #TO DO - Nspecies\Nspin are tuples with length num_species\num_spin
-    #get the sub-space of the fock space with N electrons
-    sub_states = []
-    for state in states
- 
-end
 function hamiltonian_sub(dims::NTuple{DIMS,Int64},Num::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
    states =  build_states(dims,Num)
+   N=length(states)
+   H_sub=zeros(Float64,N,N)
+   for state in states
+        H_temp=[]
+
+
+   end
 end
 function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
     # returen all states in the Fock space,  each state is reshaped to a an array of dims=(L_x,L_y,num_spin,num_species)
@@ -50,15 +51,20 @@ function build_states(dims::NTuple{DIMS,Int64},Num) where {DIMS}
         end
         push!(states,num_comb)
     end
-    states_comb = collect(Iterators.product(states... ))
-    return states_comb
+    states_comb = collect(Iterators.product(states... ))[:]
+    states_bin=[]
+    for sc in states_comb
+        push!(states_bin,bin_states(sc,dims,Int64(length(Num)/2)))
+    end
+    return states_bin
 end
 
-function bin_states(state,dims::NTuple{DIMS,Int64},Nspecies,Nspin) where {DIMS}
+function bin_states(state,dims::NTuple{DIMS,Int64},Nspecies) where {DIMS}
+    Nspin=2
      bs=zeros(Int8,dims...,Nspecies,Nspin)
      for ns in 1:Nspecies
          for np in 1:Nspin
-            bs[ntuple(k->:,length(dims)),ns,np]=reshape(bitarray(state[ns+(np-1)*Nspecies],prod(dims)),dims)
+            bs[ntuple(k->:,length(dims))...,ns,np]=reshape(bitarray(state[ns+(np-1)*Nspecies],prod(dims)),dims)
          end
     end
     return bs
@@ -93,7 +99,6 @@ function U_operator(state, U::Float64)
     spacial_dims = ndims(state)-2
     num = U*sum( sum(state[ntuple(k->:,spacial_dims+1),1].-state[ntuple(k->:,spacial_dims+1),2] ,dims=spacial_dims+1 ).^2 )
     return num
-
 end
 
 function create(state ,index::CartesianIndex{DIMS}) where {DIMS}
