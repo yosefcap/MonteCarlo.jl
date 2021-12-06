@@ -181,6 +181,7 @@ See also: [`resume!`](@ref)
 
     # fresh stack
     verbose && println("Preparing Green's function stack")
+
     init!(mc)
     reverse_build_stack(mc, mc.stack)
     propagate(mc)
