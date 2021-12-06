@@ -21,20 +21,22 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
    states =  build_states(spacial_dims,Num)
    N=length(states)
    state_num=Int[]
-   for state in states
-        push!(state_num,packbits(state[:]))
+   for c in 1:N#state in states
+        push!(state_num,packbits(states[c][:]))
    end
   
    H_sub=zeros(Float64,N,N)
    for i in 1:N 
         state_sp , co = hamiltonian_operator(states[i],t,U,μ)
         for j in 1:length(state_sp)
-            index_j = findall(x->x==packbits(state_sp[j][:]),state_num)
+            state_j=state_sp[j]
+            index_j = findall(x->x==packbits(state_j[:]),state_num)
             H_sub[i,index_j]=co[j]
         end
     end
 
 end
+
 function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
     # returen all states in the Fock space,  each state is reshaped to a an array of dims=(L_x,L_y,num_spin,num_species)
     num_n=prod(dims)
@@ -89,7 +91,7 @@ function hamiltonian_operator(state,  t::Float64,U::Float64,μ::Float64)
     state_sp = Array{Int8,length(dims)}[]
     co=Float64[]
 
-    diag_term = U*sum( sum(state[ntuple(k->:,spacial_dims+1),1].-state[ntuple(k->:,spacial_dims+1),2] ,dims=spacial_dims+1 ).^2 ) #interaction term
+    diag_term = U*sum( sum(state[ntuple(k->:,spacial_dims+1)...,1].-state[ntuple(k->:,spacial_dims+1)...,2] ,dims=spacial_dims+1 ).^2 ) #interaction term
     diag_term = diag_term - μ*sum(state) #chemical potential term
     push!(state_sp,state)
     push!(co,diag_term)
