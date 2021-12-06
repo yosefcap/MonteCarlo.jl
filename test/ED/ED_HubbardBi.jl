@@ -14,20 +14,24 @@ U=1.0;
 mu=1.0;
 ## TO DO - assign types to all variables and functions
 
-function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
+function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
 
    states =  build_states(spacial_dims,Num)
    N=length(states)
    state_num=Int[]
    for state in states
-        push(state_num,packbits(state[:]))
+        push!(state_num,packbits(state[:]))
    end
+  
    H_sub=zeros(Float64,N,N)
-   for state in states
-        H_temp=[]
+   for i in 1:N 
+        state_sp , co = hamiltonian_operator(states[i],t,U,μ)
+        for j in 1:length(state_sp)
+            index_j = findall(x->x==packbits(state_sp[j][:]),state_num)
+            H_sub[i,index_j]=co[j]
+        end
+    end
 
-
-   end
 end
 function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
     # returen all states in the Fock space,  each state is reshaped to a an array of dims=(L_x,L_y,num_spin,num_species)
@@ -74,6 +78,38 @@ function bin_states(state,dims::NTuple{DIMS,Int64},Nspecies) where {DIMS}
     end
     return bs
 end
+
+
+function hamiltonian_operator(state,  t::Float64,U::Float64,μ::Float64)
+    
+    dims = size(state)
+    spacial_dims = length(dims)-2
+    state_sp = Array{Int8,length(dims)}[]
+    co=Float64[]
+
+    diag_term = U*sum( sum(state[ntuple(k->:,spacial_dims+1),1].-state[ntuple(k->:,spacial_dims+1),2] ,dims=spacial_dims+1 ).^2 ) #interaction term
+    diag_term = diag_term - μ*sum(state) #chemical potential term
+    push!(state_sp,state)
+    push!(co,diag_term)
+
+    #hopping term
+    occupations = findall(x->x==1, state) # indices which are  occupied 
+    for occupation in occupations
+        for dir in 1:spacial_dims
+            for lr in 1:2
+                index_i = occupation
+                index_j = hop(index_i,dir,lr,dims)
+                state_f , co_temp = hopping_operatr(state,index_i,index_j)
+                if co_temp != 0
+                    push!(state_sp,state_f)
+                    push!(co,-t)
+                end
+            end
+        end
+    end
+    return state_sp , co
+end
+
 
 
 
