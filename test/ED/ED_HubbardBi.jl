@@ -14,9 +14,14 @@ U=1.0;
 mu=1.0;
 ## TO DO - assign types to all variables and functions
 
-function hamiltonian_sub(dims::NTuple{DIMS,Int64},Num::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
-   states =  build_states(dims,Num)
+function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
+
+   states =  build_states(spacial_dims,Num)
    N=length(states)
+   state_num=Int[]
+   for state in states
+        push(state_num,packbits(state[:]))
+   end
    H_sub=zeros(Float64,N,N)
    for state in states
         H_temp=[]
@@ -72,17 +77,18 @@ end
 
 
 
-function T_operator(state, spacial_dims::Int8, t::Float64)
+function T_operator(state,  t::Float64)
     #hopping part of hamiltonian
     dims = size(state)
-    state_sp=state
-    co=0
+    spacial_dims=length(dims)-2
+    state_sp=Array{Int8,length(dims)}[]#state
+    co=Float64[]#0.0
     occupations = findall(x->x==1, state) # indices which are  occupied 
 
     for occupation in occupations
         for dir in 1:spacial_dims
             for lr in 1:2
-                index_i = occupations[occupation]
+                index_i = occupation
                 index_j = hop(index_i,dir,lr,dims)
                 state_f , co_temp = hopping_operatr(state,index_i,index_j)
                 if co_temp != 0
