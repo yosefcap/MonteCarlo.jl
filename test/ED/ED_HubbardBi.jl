@@ -1,5 +1,7 @@
 using Base.Cartesian
 using BitBasis
+using Combinatorics
+using Debugger
 
 spacial_dims=Int8(2)
 num_spin=2;
@@ -109,8 +111,6 @@ function hamiltonian_operator(state,  t::Float64,U::Float64,μ::Float64)
     end
     return state_sp , co
 end
-
-
 
 
 function T_operator(state,  t::Float64)
