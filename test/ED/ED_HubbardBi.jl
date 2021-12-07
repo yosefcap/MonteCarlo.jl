@@ -20,21 +20,23 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
 
    states =  build_states(spacial_dims,Num)
    N=length(states)
-   state_num=Int[]
+   state_num=Int64[]
    for c in 1:N#state in states
-        push!(state_num,packbits(states[c][:]))
+    state_c = states[c]
+        push!(state_num,packbits(state_c[:]))
    end
   
    H_sub=zeros(Float64,N,N)
    for i in 1:N 
-        state_sp , co = hamiltonian_operator(states[i],t,U,μ)
+    state_i=states[i]
+        state_sp , co = hamiltonian_operator(state_i,t,U,μ)
         for j in 1:length(state_sp)
             state_j=state_sp[j]
             index_j = findall(x->x==packbits(state_j[:]),state_num)
-            H_sub[i,index_j]=co[j]
+            H_sub[i,index_j...]+=co[j]
         end
     end
-
+    return H_sub
 end
 
 function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
@@ -147,7 +149,7 @@ end
 
 function create(state ,index::CartesianIndex{DIMS}) where {DIMS}
     # creation operator at (x,y,spin,species)
-    new_state = state
+    new_state = copy(state)
     ex = 0.0  # denotes if the state was annihilated by the creation operator. 
     if state[index] == 0
         new_state[index] = 1 
@@ -158,7 +160,7 @@ end
 
 function annihilate(state ,index::CartesianIndex{DIMS}) where {DIMS}
     # annihilation operator at (x,y,spin,species)
-    new_state = state
+    new_state = copy(state)
     ex = 0  # denotes if the state was annihilated by the annihilation operator. 
     if state[index] == 1
         new_state[index] = 0
