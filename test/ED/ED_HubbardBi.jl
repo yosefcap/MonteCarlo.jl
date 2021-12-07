@@ -14,7 +14,12 @@ N=2^num_n;
 t=1.0; 
 U=1.0;
 mu=1.0;
+
 ## TO DO - assign types to all variables and functions
+function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
+    N_max=prod(spacial_dims)
+    
+end
 
 function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
 
