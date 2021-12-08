@@ -17,7 +17,15 @@ mu=1.0;
 
 ## TO DO - assign types to all variables and functions
 function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
+    num_spin=2
     N_max=prod(spacial_dims)
+    nt=0:N_max
+    n=[]
+    for i in 1:num_spin*num_species
+        push!(n,nt)
+    end
+    n_vec=collect(Iterators.product(n...))[:]
+
     
 end
 
@@ -44,17 +52,6 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
     return H_sub
 end
 
-function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
-    # returen all states in the Fock space,  each state is reshaped to a an array of dims=(L_x,L_y,num_spin,num_species)
-    num_n=prod(dims)
-    N=2^num_n
-    states=[];
-    for c in 0:N-1
-        state = dec2bin(c,num_n)
-        push!(states,reshape(state , dims...))
-    end
-    return states
-end
 
 function build_states(dims::NTuple{DIMS,Int64},Num) where {DIMS}
     #Num is a vector of  number operators for the different types of electrons (classified by their specie and spin)
@@ -99,7 +96,7 @@ function hamiltonian_operator(state,  t::Float64,U::Float64,μ::Float64)
     co=Float64[]
 
     diag_term = U*sum( sum(state[ntuple(k->:,spacial_dims+1)...,1].-state[ntuple(k->:,spacial_dims+1)...,2] ,dims=spacial_dims+1 ).^2 ) #interaction term
-    diag_term = diag_term - μ*sum(state) #chemical potential term
+    diag_term = -diag_term - μ*sum(state) #chemical potential term
     push!(state_sp,state)
     push!(co,diag_term)
 
@@ -121,41 +118,10 @@ function hamiltonian_operator(state,  t::Float64,U::Float64,μ::Float64)
     return state_sp , co
 end
 
-
-function T_operator(state,  t::Float64)
-    #hopping part of hamiltonian
-    dims = size(state)
-    spacial_dims=length(dims)-2
-    state_sp=Array{Int8,length(dims)}[]#state
-    co=Float64[]#0.0
-    occupations = findall(x->x==1, state) # indices which are  occupied 
-
-    for occupation in occupations
-        for dir in 1:spacial_dims
-            for lr in 1:2
-                index_i = occupation
-                index_j = hop(index_i,dir,lr,dims)
-                state_f , co_temp = hopping_operatr(state,index_i,index_j)
-                if co_temp != 0
-                    push!(state_sp,state_f)
-                    push!(co,-t)
-                end
-            end
-        end
-    end
-    return state_sp , co
-end
-
-function U_operator(state, U::Float64)
-    spacial_dims = ndims(state)-2
-    num = U*sum( sum(state[ntuple(k->:,spacial_dims+1),1].-state[ntuple(k->:,spacial_dims+1),2] ,dims=spacial_dims+1 ).^2 )
-    return num
-end
-
 function create(state ,index::CartesianIndex{DIMS}) where {DIMS}
-    # creation operator at (x,y,spin,species)
+    # creation operator at (x,y,species,spin)
     new_state = copy(state)
-    ex = 0.0  # denotes if the state was annihilated by the creation operator. 
+    ex = 0  # denotes if the state was annihilated by the creation operator. 
     if state[index] == 0
         new_state[index] = 1 
         ex = 1
@@ -174,27 +140,11 @@ function annihilate(state ,index::CartesianIndex{DIMS}) where {DIMS}
         return new_state , ex
 end
 
-function hopping_operatr(state_i,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS}) where {DIMS}
-    #hopping from  (x_i,y_i,spin_i,species_i) to  (x_j,y_j,spin_j,species_f)
-    state_temp , ex = annihilate(state_i,index_i)
+function hopping_operatr(state,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS}) where {DIMS}
+    #hopping from  (x_i,y_i,species_i,spin_i) to  (x_j,y_j,species_f,spin_j)
+    state_temp , ex = annihilate(state,index_i)
     ex == 0 ? state_f = state_temp : (state_f , ex) = create(state_temp, index_j)
     return state_f , ex   
-end
-
-function number(state,index::CartesianIndex{DIMS}) where {DIMS}
-    #number operator at  (x,y,spin,species)
-    ex = state[index]
-    return state , ex # passing and returning state is unnecessary - perhaps remove
-end
-
-function dec2bin(x::Int64,pad::Int64)
-
-    bin = zeros(Int8,pad)
-    for i in 1:pad
-        bin[i]=x%2
-        x = x÷2
-    end
-    return bin
 end
 
 function hop(index::CartesianIndex{DIMS},dir::Int64,lr::Int64,dims::NTuple{DIMS,Int64}) where {DIMS}
@@ -209,4 +159,15 @@ function hop(index::CartesianIndex{DIMS},dir::Int64,lr::Int64,dims::NTuple{DIMS,
 
 end
 
+function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
+    # returen all states in the Fock space,  each state is reshaped to a an array of dims=(L_x,L_y,num_spin,num_species)
+    num_n=prod(dims)
+    N=2^num_n
+    states=[];
+    for c in 0:N-1
+        state = dec2bin(c,num_n)
+        push!(states,reshape(state , dims...))
+    end
+    return states
+end
 
