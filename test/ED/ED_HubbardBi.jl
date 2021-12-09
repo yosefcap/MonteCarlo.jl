@@ -2,6 +2,8 @@ using Base.Cartesian
 using BitBasis
 using Combinatorics
 using Debugger
+using SparseArrays
+using Arpack
 
 spacial_dims=Int8(2)
 num_spin=2;
@@ -16,6 +18,14 @@ U=1.0;
 mu=1.0;
 
 ## TO DO - assign types to all variables and functions
+function occupation(specs,nums,temp::Float64)
+    N=length(nums)
+    for i in 1:N
+        num=nums[i]
+        bolzman=sum(exp.(-(1/temp).*specs[i]))
+
+    end
+end
 function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
     num_spin=2
     N_max=prod(spacial_dims)
@@ -24,9 +34,14 @@ function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float6
     for i in 1:num_spin*num_species
         push!(n,nt)
     end
-    n_vec=collect(Iterators.product(n...))[:]
-
-    
+    en_spec=[]
+    n_vecs=collect(Iterators.product(n...))[:]
+    for n_vec in n_vecs
+        ham=hamiltonian_sub(spacial_dims,n_vec,t,U,μ)
+        E=eigen(ham)
+        push!(en_spec,E.values)
+    end
+    return en_spec , n_vecs
 end
 
 function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
@@ -39,7 +54,7 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
         push!(state_num,packbits(state_c[:]))
    end
   
-   H_sub=zeros(Float64,N,N)
+   H_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
    for i in 1:N 
     state_i=states[i]
         state_sp , co = hamiltonian_operator(state_i,t,U,μ)
@@ -53,7 +68,7 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
 end
 
 
-function build_states(dims::NTuple{DIMS,Int64},Num) where {DIMS}
+function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {DIMS} where {DIMS2}
     #Num is a vector of  number operators for the different types of electrons (classified by their specie and spin)
     #dims is a vector of the spacial dimensions.
     # returen all states in the sub-space of the Fock space 
@@ -76,7 +91,7 @@ function build_states(dims::NTuple{DIMS,Int64},Num) where {DIMS}
     return states_bin
 end
 
-function bin_states(state,dims::NTuple{DIMS,Int64},Nspecies) where {DIMS}
+function bin_states(state::Array{Int8,DIMS2},dims::NTuple{DIMS,Int64},Nspecies::Int8) where {DIMS} where {DIMS2}
     Nspin=2
      bs=zeros(Int8,dims...,Nspecies,Nspin)
      for ns in 1:Nspecies
@@ -88,7 +103,7 @@ function bin_states(state,dims::NTuple{DIMS,Int64},Nspecies) where {DIMS}
 end
 
 
-function hamiltonian_operator(state,  t::Float64,U::Float64,μ::Float64)
+function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,μ::Float64) where {DIMS2}
     
     dims = size(state)
     spacial_dims = length(dims)-2
@@ -118,7 +133,7 @@ function hamiltonian_operator(state,  t::Float64,U::Float64,μ::Float64)
     return state_sp , co
 end
 
-function create(state ,index::CartesianIndex{DIMS}) where {DIMS}
+function create(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
     # creation operator at (x,y,species,spin)
     new_state = copy(state)
     ex = 0  # denotes if the state was annihilated by the creation operator. 
@@ -129,7 +144,7 @@ function create(state ,index::CartesianIndex{DIMS}) where {DIMS}
         return new_state , ex
 end
 
-function annihilate(state ,index::CartesianIndex{DIMS}) where {DIMS}
+function annihilate(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
     # annihilation operator at (x,y,spin,species)
     new_state = copy(state)
     ex = 0  # denotes if the state was annihilated by the annihilation operator. 
@@ -140,7 +155,7 @@ function annihilate(state ,index::CartesianIndex{DIMS}) where {DIMS}
         return new_state , ex
 end
 
-function hopping_operatr(state,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS}) where {DIMS}
+function hopping_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
     #hopping from  (x_i,y_i,species_i,spin_i) to  (x_j,y_j,species_f,spin_j)
     state_temp , ex = annihilate(state,index_i)
     ex == 0 ? state_f = state_temp : (state_f , ex) = create(state_temp, index_j)
