@@ -5,6 +5,7 @@ using Debugger
 using SparseArrays
 using Arpack
 
+
 spacial_dims=Int8(2)
 num_spin=2;
 num_species=2;
