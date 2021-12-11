@@ -6,17 +6,17 @@ using SparseArrays
 using Arpack
 
 
-spacial_dims=Int8(2)
-num_spin=2;
-num_species=2;
-L_x=2;
-L_y=1;
-num_sites = L_x*L_y
-num_n=num_spin*num_species*num_sites;
-N=2^num_n;
-t=1.0; 
-U=1.0;
-mu=1.0;
+#spacial_dims=Int8(2)
+#num_spin=2;
+#num_species=2;
+#L_x=2;
+#L_y=1;
+#num_sites = L_x*L_y
+#num_n=num_spin*num_species*num_sites;
+#N=2^num_n;
+#t=1.0; 
+#U=1.0;
+#mu=1.0;
 
 ## TO DO - assign types to all variables and functions
 function occupation(specs,nums,temp::Float64)
@@ -87,12 +87,12 @@ function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {
     states_comb = collect(Iterators.product(states... ))[:]
     states_bin=[]
     for sc in states_comb
-        push!(states_bin,bin_states(sc,dims,Int64(length(Num)/2)))
+        push!(states_bin,bin_states(sc,dims,Int8(length(Num)/2)))
     end
-    return states_bin
+       return states_bin
 end
 
-function bin_states(state::Array{Int8,DIMS2},dims::NTuple{DIMS,Int64},Nspecies::Int8) where {DIMS} where {DIMS2}
+function bin_states(state::NTuple{DIMS2,Int64},dims::NTuple{DIMS,Int64},Nspecies::Int8) where {DIMS} where {DIMS2}
     Nspin=2
      bs=zeros(Int8,dims...,Nspecies,Nspin)
      for ns in 1:Nspecies
@@ -140,7 +140,7 @@ function create(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS}) where {DI
     ex = 0  # denotes if the state was annihilated by the creation operator. 
     if state[index] == 0
         new_state[index] = 1 
-        ex = 1
+        ex = check_fermion_comm(state ,index)#1
     end
         return new_state , ex
 end
@@ -151,16 +151,24 @@ function annihilate(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS}) where
     ex = 0  # denotes if the state was annihilated by the annihilation operator. 
     if state[index] == 1
         new_state[index] = 0
-        ex = 1
+        ex = check_fermion_comm(state ,index)#1
     end
         return new_state , ex
 end
 
+function check_fermion_comm(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
+    state_l=LinearIndices(state)
+    index_l=state_l[index]
+    sign = sum(state[:][index_l+1:end])
+    ex = (-1)^(sign-1)
+    return ex 
+end
+
 function hopping_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
     #hopping from  (x_i,y_i,species_i,spin_i) to  (x_j,y_j,species_f,spin_j)
-    state_temp , ex = annihilate(state,index_i)
-    ex == 0 ? state_f = state_temp : (state_f , ex) = create(state_temp, index_j)
-    return state_f , ex   
+    state_temp , ex1 = annihilate(state,index_i)
+    ex1 == 0 ? state_f = state_temp : (state_f , ex2) = create(state_temp, index_j)
+    return state_f , ex1*ex2   
 end
 
 function hop(index::CartesianIndex{DIMS},dir::Int64,lr::Int64,dims::NTuple{DIMS,Int64}) where {DIMS}
