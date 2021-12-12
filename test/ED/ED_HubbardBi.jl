@@ -126,7 +126,7 @@ function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,
                 state_f , co_temp = hopping_operatr(state,index_i,index_j)
                 if co_temp != 0
                     push!(state_sp,state_f)
-                    push!(co,-t)
+                    push!(co,-t*co_temp)
                 end
             end
         end
@@ -160,7 +160,7 @@ function check_fermion_comm(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS
     state_l=LinearIndices(state)
     index_l=state_l[index]
     sign = sum(state[:][index_l+1:end])
-    ex = (-1)^(sign-1)
+    ex = (-1)^(sign-1)#(-1)^(sign-1)
     return ex 
 end
 
