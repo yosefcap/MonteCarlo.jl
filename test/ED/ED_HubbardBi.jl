@@ -20,13 +20,19 @@ using Arpack
 
 ## TO DO - assign types to all variables and functions
 function occupation(specs,nums,temp::Float64)
+
     N=length(nums)
+    occ=zeros(Float64,length(nums[1]))
+    z=0.0
     for i in 1:N
         num=nums[i]
         bolzman=sum(exp.(-(1/temp).*specs[i]))
-
+        occ.+=bolzman.*num
+        z+=bolzman
     end
+    return occ./z
 end
+
 function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
     num_spin=2
     N_max=prod(spacial_dims)
