@@ -26,9 +26,10 @@ greens matrix is used.
 
 @with_kw_noshow struct HubbardModelBi{LT<:AbstractLattice} <: HubbardModel
     # user optional
-    U::Float64 = 1.0
+    U::Float64 = 0.6
     @assert U >= 0. "U must be positive."
     t::Float64 = 1.0
+    μ::Float64 = -0.4
     a::Float64 = 0.8 # coeficient of the \lambda_1 term.
     # mandatory (this or (L, dims))
     l::LT
