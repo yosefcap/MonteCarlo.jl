@@ -19,7 +19,7 @@ using Arpack
 #mu=1.0;
 
 ## TO DO - assign types to all variables and functions
-function occupation(specs,nums,temp::Float64)
+function occupation_ed(specs,nums,temp::Float64)
 
     N=length(nums)
     occ=zeros(Float64,length(nums[1]))
