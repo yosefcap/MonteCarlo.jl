@@ -4,6 +4,7 @@ using Combinatorics
 using Debugger
 using SparseArrays
 using Arpack
+using LinearAlgebra
 
 
 #spacial_dims=Int8(2)
@@ -31,6 +32,18 @@ function occupation_ed(specs,nums,temp::Float64)
         z+=bolzman
     end
     return occ./z
+end
+
+function energy_ed(specs,nums,temp::Float64)
+
+    N=length(nums)
+    enr=0.0
+    z=0.0
+    for i in 1:N   
+        enr+=sum(exp.(-(1/temp).*specs[i]) .*specs[i] )
+        z+=sum(exp.(-(1/temp).*specs[i])  )
+    end
+    return enr./z
 end
 
 function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
@@ -62,7 +75,7 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
    end
   
    H_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
-   for i in 1:N 
+   for i in 1:N  
     state_i=states[i]
         state_sp , co = hamiltonian_operator(state_i,t,U,μ)
         for j in 1:length(state_sp)
@@ -109,6 +122,19 @@ function bin_states(state::NTuple{DIMS2,Int64},dims::NTuple{DIMS,Int64},Nspecies
     return bs
 end
 
+function SC_corr_operator(state::Array{Int8,DIMS2} , index_i::CartesianIndex{DIMS} , index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
+    # index_i contains only the spacial index 
+    dims = size(state)
+    spacial_dims = length(index_i)
+    num_species = dims[spacial_dims+1]
+    state_sp = Array{Int8,length(dims)}[]
+    co=Float64[]
+    
+    state_temp , ex1 =  SC_create_operatr(state,index_i)
+    ex1 == 0 ? state_f = state_temp : (state_f , ex2) = SC_create_operatr(state_temp, index_j)
+    return state_f , ex1*ex2
+ 
+end
 
 function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,μ::Float64) where {DIMS2}
     
@@ -122,7 +148,7 @@ function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,
     push!(state_sp,state)
     push!(co,diag_term)
 
-    #hopping term
+    #hopping term 
     occupations = findall(x->x==1, state) # indices which are  occupied 
     for occupation in occupations
         for dir in 1:spacial_dims
@@ -171,9 +197,30 @@ function check_fermion_comm(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS
 end
 
 function hopping_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
-    #hopping from  (x_i,y_i,species_i,spin_i) to  (x_j,y_j,species_f,spin_j)
+    #hopping from  (x_i,y_i,species_i,spin_i) to  (x_j,y_j,species_j,spin_j)
     state_temp , ex1 = annihilate(state,index_i)
     ex1 == 0 ? state_f = state_temp : (state_f , ex2) = create(state_temp, index_j)
+    return state_f , ex1*ex2
+       
+end
+
+function SC_create_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
+    #sc operator c^†_{index_i,↑} c^†_{index_i,↓} where   index_i=(x_i,y_i,species_i) 
+    up_s   = CartesianIndex(index_i,1) 
+    down_s = CartesianIndex(index_i,2)
+
+    state_temp , ex1 = create(state,down_s)
+    ex1 == 0 ? state_f = state_temp : (state_f , ex2) = create(state_temp, up_s)
+    return state_f , ex1*ex2   
+end
+
+function SC_annihilate_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
+    #sc operator c^†_{index_i,↓} c^_{index_i,↑} where   index_i=(x_i,y_i,species_i) 
+    up_s   = CartesianIndex(index_i,1) 
+    down_s = CartesianIndex(index_i,2)
+
+    state_temp , ex1 = annihilate(state,up_s)
+    ex1 == 0 ? state_f = state_temp : (state_f , ex2) = annihilate(state_temp, down_s)
     return state_f , ex1*ex2   
 end
 
