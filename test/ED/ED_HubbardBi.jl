@@ -87,7 +87,29 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
     return H_sub
 end
 
+function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIndex{DIMS} , index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2} 
 
+    states =  build_states(spacial_dims,Num)
+    N=length(states)
+    state_num=Int64[]
+    for c in 1:N#state in states
+     state_c = states[c]
+         push!(state_num,packbits(state_c[:]))
+    end
+   
+    SC_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
+    for ket in 1:N  
+     state_ket=states[ket]
+         state_sp , co = SC_corr_operator(state_ket,index_i,index_j)
+         for bra in 1:length(state_sp)
+             state_bra=state_sp[bra]
+             bra = findall(x->x==packbits(state_bra[:]),state_num)
+             SC_sub[ket,bra...]+=co[bra]
+         end
+     end
+     return SC_sub
+ end
+ 
 function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {DIMS} where {DIMS2}
     #Num is a vector of  number operators for the different types of electrons (classified by their specie and spin)
     #dims is a vector of the spacial dimensions.
@@ -129,11 +151,23 @@ function SC_corr_operator(state::Array{Int8,DIMS2} , index_i::CartesianIndex{DIM
     num_species = dims[spacial_dims+1]
     state_sp = Array{Int8,length(dims)}[]
     co=Float64[]
-    
-    state_temp , ex1 =  SC_create_operatr(state,index_i)
-    ex1 == 0 ? state_f = state_temp : (state_f , ex2) = SC_create_operatr(state_temp, index_j)
-    return state_f , ex1*ex2
- 
+
+    for c in 1:num_species 
+        for g in 1:2
+            if g==1
+                index_i_sp=CartesianIndex(index_i,c)
+                index_j_sp=CartesianIndex(index_j,c)
+            else
+                index_i_sp=CartesianIndex(index_j,c)
+                index_j_sp=CartesianIndex(index_i,c)
+            end
+            state_temp , ex1 =  SC_create_operatr(state,index_i_sp)
+            ex1 == 0 ? state_f = state_temp : (state_f , ex2) = SC_create_operatr(state_temp, index_j_sp)
+            push!(state_sp,state_f)
+            push!(co,ex1*ex2)   
+        end
+    end
+    return state_sp , co
 end
 
 function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,μ::Float64) where {DIMS2}
