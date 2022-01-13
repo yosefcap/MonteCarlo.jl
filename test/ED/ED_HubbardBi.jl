@@ -46,6 +46,64 @@ function energy_ed(specs,nums,temp::Float64)
     return enr./z
 end
 
+function energy_obs(en_val::Vector{Float64} ,beta::Float64)
+
+    D = Diagonal(en_val)
+    expD = Diagonal(exp.(-beta*en_val))
+    enr = tr(D*expD)    
+    return enr
+end
+
+function partition_obs(en_val::Vector{Float64} ,beta::Float64)
+
+    D = Diagonal(en_val)
+    expD = Diagonal(exp.(-beta*en_val))
+    par = tr(expD)    
+    return par
+
+end
+
+function SC_corr_obs(spacial_dims::NTuple{DIMS2,Int64},index_i::NTuple{DIMS,Int64},index_j::NTuple{DIMS,Int64} , Num , en_val::Vector{Float64} , en_vec::Matrix{Float64} , beta::Float64) where {DIMS} where {DIMS2}
+    P = SC_corr_sub(spacial_dims,Num, index_i , index_j) 
+    Pd = en_vec'*P*en_vec
+    D = Diagonal(en_val)
+    expD = Diagonal(exp.(-beta*en_val))
+    par = tr(P*expD)    
+    return par
+
+end
+
+function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64,betas::Vector{Float64}) where {DIMS}
+    num_spin=2
+    N_max=prod(spacial_dims)
+    nt=0:N_max
+    n=[]
+    for i in 1:num_spin*num_species
+        push!(n,nt)
+    end
+    
+    nums=collect(Iterators.product(n...))[:]
+
+    for num in nums
+        for beta in betas
+            ham=hamiltonian_sub(spacial_dims,num,t,U,μ)
+            en_val , en_vec = eigen(ham)
+            Partition += Partition_obs(en_val ,beta)
+            energy    += energy_obs(en_val ,beta)
+            number    += number_obs(en_val , en_vec, beta)
+            for   x in 1:spacial_dims[1]
+                for y  in 1:spacial_dims[2]
+                    SC_corr[x,y,xt,yt]+=SC_corr_obs(spacial_dims,(x,y) , (xt,yt) , num , en_val , en_vec, beta)
+                    
+                end
+            end
+        end
+    end
+    
+    return 
+
+end
+
 function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
     num_spin=2
     N_max=prod(spacial_dims)
@@ -54,34 +112,32 @@ function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float6
     for i in 1:num_spin*num_species
         push!(n,nt)
     end
-    en_spec=[]
-    n_vecs=collect(Iterators.product(n...))[:]
-    for n_vec in n_vecs
-        ham=hamiltonian_sub(spacial_dims,n_vec,t,U,μ)
+    en_val=[]
+    en_vec=[]
+    nums=collect(Iterators.product(n...))[:]
+    for num in nums
+        ham=hamiltonian_sub(spacial_dims,num,t,U,μ)
         E=eigen(ham)
-        push!(en_spec,E.values)
+        push!(en_val,E.values)
+        push!(en_vec,E.vectors)
     end
-    return en_spec , n_vecs
+    return en_val , en_vec , nums
 end
 
 function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
 
-   states =  build_states(spacial_dims,Num)
+   states ,state_num =  build_states(spacial_dims,Num)
    N=length(states)
    state_num=Int64[]
-   for c in 1:N#state in states
-    state_c = states[c]
-        push!(state_num,packbits(state_c[:]))
-   end
   
    H_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
-   for i in 1:N  
-    state_i=states[i]
-        state_sp , co = hamiltonian_operator(state_i,t,U,μ)
+   for ket in 1:N  
+    state_ket=states[ket]
+        state_sp , co = hamiltonian_operator(state_ket,t,U,μ)
         for j in 1:length(state_sp)
-            state_j=state_sp[j]
-            index_j = findall(x->x==packbits(state_j[:]),state_num)
-            H_sub[i,index_j...]+=co[j]
+            state_bra=state_sp[j]
+            bra = findall(x->x==packbits(state_bra[:]),state_num)
+            H_sub[ket,bra...]+=co[j]
         end
     end
     return H_sub
@@ -89,13 +145,8 @@ end
 
 function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIndex{DIMS} , index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2} 
 
-    states =  build_states(spacial_dims,Num)
+    states ,state_num =  build_states(spacial_dims,Num)
     N=length(states)
-    state_num=Int64[]
-    for c in 1:N#state in states
-     state_c = states[c]
-         push!(state_num,packbits(state_c[:]))
-    end
    
     SC_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
     for ket in 1:N  
@@ -130,7 +181,12 @@ function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {
     for sc in states_comb
         push!(states_bin,bin_states(sc,dims,Int8(length(Num)/2)))
     end
-       return states_bin
+    state_num=Int64[]
+    for c in 1:N#state in states
+     state_c = states[c]
+         push!(state_num,packbits(state_c[:]))
+    end
+       return states_bin , state_num
 end
 
 function bin_states(state::NTuple{DIMS2,Int64},dims::NTuple{DIMS,Int64},Nspecies::Int8) where {DIMS} where {DIMS2}
