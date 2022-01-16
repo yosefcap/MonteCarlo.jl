@@ -1,7 +1,7 @@
 using Base.Cartesian
 using BitBasis
 using Combinatorics
-using Debugger
+#using Debugger
 using SparseArrays
 using Arpack
 using LinearAlgebra
@@ -54,6 +54,15 @@ function energy_obs(en_val::Vector{Float64} ,beta::Float64)
     return enr
 end
 
+function number_obs(en_val::Vector{Float64},num ,beta::Float64)
+
+    D = Diagonal(en_val)
+    expD = Diagonal(exp.(-beta*en_val))
+    N=sum(num)
+    enr = tr(N*expD)    
+    return enr
+end
+
 function partition_obs(en_val::Vector{Float64} ,beta::Float64)
 
     D = Diagonal(en_val)
@@ -63,7 +72,7 @@ function partition_obs(en_val::Vector{Float64} ,beta::Float64)
 
 end
 
-function SC_corr_obs(spacial_dims::NTuple{DIMS2,Int64},index_i::NTuple{DIMS,Int64},index_j::NTuple{DIMS,Int64} , Num , en_val::Vector{Float64} , en_vec::Matrix{Float64} , beta::Float64) where {DIMS} where {DIMS2}
+function SC_corr_obs(spacial_dims::NTuple{DIMS2,Int64},index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS} , Num , en_val::Vector{Float64} , en_vec::Matrix{Float64} , beta::Float64) where {DIMS} where {DIMS2}
     P = SC_corr_sub(spacial_dims,Num, index_i , index_j) 
     Pd = en_vec'*P*en_vec
     D = Diagonal(en_val)
@@ -83,26 +92,38 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
     end
     
     nums=collect(Iterators.product(n...))[:]
-
-    for num in nums
-        for beta in betas
+    b=length(betas)
+    partitions = zeros(Float64,b)
+    energys = zeros(Float64,b)
+    numbers = zeros(Float64,b)
+    SC_corrs=zeros(Float64,spacial_dims...,b)
+    
+    
+        for num in nums 
+            for i in 1:b
+                beta=betas[i]      
             ham=hamiltonian_sub(spacial_dims,num,t,U,μ)
             en_val , en_vec = eigen(ham)
-            Partition += Partition_obs(en_val ,beta)
-            energy    += energy_obs(en_val ,beta)
-            number    += number_obs(en_val , en_vec, beta)
-            for   x in 1:spacial_dims[1]
-                for y  in 1:spacial_dims[2]
-                    SC_corr[x,y,xt,yt]+=SC_corr_obs(spacial_dims,(x,y) , (xt,yt) , num , en_val , en_vec, beta)
+
+            partitions[i] += partition_obs(en_val ,beta)
+            energys[i]    += energy_obs(en_val ,beta)
+            numbers[i]    += number_obs(en_val , num, beta)
+            for   xt in 1:spacial_dims[1]
+                for yt  in 1:spacial_dims[2]
+                    x=1
+                    y=1
+                    SC_corrs[xt,yt,i]+=SC_corr_obs(spacial_dims,CartesianIndex(x,y) , CartesianIndex(xt,yt) , num , en_val , en_vec, beta)
                     
                 end
             end
+            
         end
+        
     end
     
-    return 
-
+    return partitions, energys./partitions, numbers./partitions,SC_corrs
 end
+
 
 function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64) where {DIMS}
     num_spin=2
@@ -126,10 +147,8 @@ end
 
 function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
 
-   states ,state_num =  build_states(spacial_dims,Num)
+   states , state_num =  build_states(spacial_dims,Num)
    N=length(states)
-   state_num=Int64[]
-  
    H_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
    for ket in 1:N  
     state_ket=states[ket]
@@ -152,10 +171,10 @@ function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIn
     for ket in 1:N  
      state_ket=states[ket]
          state_sp , co = SC_corr_operator(state_ket,index_i,index_j)
-         for bra in 1:length(state_sp)
-             state_bra=state_sp[bra]
+         for j in 1:length(state_sp)
+             state_bra=state_sp[j]
              bra = findall(x->x==packbits(state_bra[:]),state_num)
-             SC_sub[ket,bra...]+=co[bra]
+             SC_sub[ket,bra]+=co[bra]
          end
      end
      return SC_sub
@@ -182,8 +201,9 @@ function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {
         push!(states_bin,bin_states(sc,dims,Int8(length(Num)/2)))
     end
     state_num=Int64[]
+    N=length(states_bin)
     for c in 1:N#state in states
-     state_c = states[c]
+     state_c = states_bin[c]
          push!(state_num,packbits(state_c[:]))
     end
        return states_bin , state_num
@@ -200,7 +220,7 @@ function bin_states(state::NTuple{DIMS2,Int64},dims::NTuple{DIMS,Int64},Nspecies
     return bs
 end
 
-function SC_corr_operator(state::Array{Int8,DIMS2} , index_i::CartesianIndex{DIMS} , index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
+function SC_corr_operator(state::Array{Int8,DIMS2} , index_i::CartesianIndex{DIMS}, index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
     # index_i contains only the spacial index 
     dims = size(state)
     spacial_dims = length(index_i)
@@ -211,14 +231,15 @@ function SC_corr_operator(state::Array{Int8,DIMS2} , index_i::CartesianIndex{DIM
     for c in 1:num_species 
         for g in 1:2
             if g==1
-                index_i_sp=CartesianIndex(index_i,c)
-                index_j_sp=CartesianIndex(index_j,c)
+                index_i_sp=CartesianIndex(index_i,c) #(index_i...,c)#
+                index_j_sp=CartesianIndex(index_j,c) #(index_j...,c)#
             else
-                index_i_sp=CartesianIndex(index_j,c)
+                index_i_sp=CartesianIndex(index_j,c) #(index_j...,c)#
                 index_j_sp=CartesianIndex(index_i,c)
             end
             state_temp , ex1 =  SC_create_operatr(state,index_i_sp)
-            ex1 == 0 ? state_f = state_temp : (state_f , ex2) = SC_create_operatr(state_temp, index_j_sp)
+            ex2=0
+            ex1 == 0 ? state_f = state_temp : (state_f , ex2) = SC_annihilate_operatr(state_temp, index_j_sp)
             push!(state_sp,state_f)
             push!(co,ex1*ex2)   
         end
@@ -300,6 +321,7 @@ function SC_create_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIM
     down_s = CartesianIndex(index_i,2)
 
     state_temp , ex1 = create(state,down_s)
+    ex2=0
     ex1 == 0 ? state_f = state_temp : (state_f , ex2) = create(state_temp, up_s)
     return state_f , ex1*ex2   
 end
@@ -308,7 +330,7 @@ function SC_annihilate_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex
     #sc operator c^†_{index_i,↓} c^_{index_i,↑} where   index_i=(x_i,y_i,species_i) 
     up_s   = CartesianIndex(index_i,1) 
     down_s = CartesianIndex(index_i,2)
-
+    ex2=0
     state_temp , ex1 = annihilate(state,up_s)
     ex1 == 0 ? state_f = state_temp : (state_f , ex2) = annihilate(state_temp, down_s)
     return state_f , ex1*ex2   
