@@ -174,7 +174,7 @@ function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIn
          for j in 1:length(state_sp)
              state_bra=state_sp[j]
              bra = findall(x->x==packbits(state_bra[:]),state_num)
-             SC_sub[ket,bra]+=co[bra]
+             SC_sub[ket,bra].+=co[j]
          end
      end
      return SC_sub
@@ -225,8 +225,8 @@ function SC_corr_operator(state::Array{Int8,DIMS2} , index_i::CartesianIndex{DIM
     dims = size(state)
     spacial_dims = length(index_i)
     num_species = dims[spacial_dims+1]
-    state_sp = Array{Int8,length(dims)}[]
-    co=Float64[]
+    state_sp = Array{Int8,length(dims)}[]#state#
+    co=Float64[]#0.0#
 
     for c in 1:num_species 
         for g in 1:2
@@ -240,8 +240,10 @@ function SC_corr_operator(state::Array{Int8,DIMS2} , index_i::CartesianIndex{DIM
             state_temp , ex1 =  SC_create_operatr(state,index_i_sp)
             ex2=0
             ex1 == 0 ? state_f = state_temp : (state_f , ex2) = SC_annihilate_operatr(state_temp, index_j_sp)
-            push!(state_sp,state_f)
-            push!(co,ex1*ex2)   
+            if ex1*ex2 != 0.0
+                push!(state_sp,state_f)
+                push!(co,ex1*ex2) 
+            end  
         end
     end
     return state_sp , co
