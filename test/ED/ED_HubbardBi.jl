@@ -65,7 +65,6 @@ end
 
 function partition_obs(en_val::Vector{Float64} ,beta::Float64)
 
-    D = Diagonal(en_val)
     expD = Diagonal(exp.(-beta*en_val))
     par = tr(expD)    
     return par
@@ -75,11 +74,9 @@ end
 function SC_corr_obs(spacial_dims::NTuple{DIMS2,Int64},index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS} , Num , en_val::Vector{Float64} , en_vec::Matrix{Float64} , beta::Float64) where {DIMS} where {DIMS2}
     P = SC_corr_sub(spacial_dims,Num, index_i , index_j) 
     Pd = en_vec'*P*en_vec
-    D = Diagonal(en_val)
     expD = Diagonal(exp.(-beta*en_val))
-    par = tr(P*expD)    
+    par = tr(Pd*expD)    
     return par
-
 end
 
 function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64,betas::Vector{Float64}) where {DIMS}
@@ -120,7 +117,9 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
         end
         
     end
-    
+    for i in 1:b
+        SC_corrs[:,:,i] = SC_corrs[:,:,i]./partitions[i]
+    end
     return partitions, energys./partitions, numbers./partitions,SC_corrs
 end
 
@@ -134,15 +133,15 @@ function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float6
         push!(n,nt)
     end
     en_val=[]
-    en_vec=[]
+    #en_vec=[]
     nums=collect(Iterators.product(n...))[:]
     for num in nums
         ham=hamiltonian_sub(spacial_dims,num,t,U,μ)
         E=eigen(ham)
         push!(en_val,E.values)
-        push!(en_vec,E.vectors)
+        #push!(en_vec,E.vectors)
     end
-    return en_val , en_vec , nums
+    return en_val  , nums
 end
 
 function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
