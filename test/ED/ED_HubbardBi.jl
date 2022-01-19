@@ -143,14 +143,14 @@ function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float6
     end
     return en_val  , nums
 end
-
+#=
 function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
 
    states , state_num =  build_states(spacial_dims,Num)
    N=length(states)
    H_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
    for ket in 1:N  
-    state_ket=states[ket]
+        state_ket=states[ket]
         state_sp , co = hamiltonian_operator(state_ket,t,U,μ)
         for j in 1:length(state_sp)
             state_bra=state_sp[j]
@@ -160,7 +160,7 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
     end
     return H_sub
 end
-
+=#
 function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIndex{DIMS} , index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2} 
 
     states ,state_num =  build_states(spacial_dims,Num)
@@ -178,7 +178,7 @@ function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIn
      end
      return SC_sub
  end
- 
+ #=
 function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {DIMS} where {DIMS2}
     #Num is a vector of  number operators for the different types of electrons (classified by their specie and spin)
     #dims is a vector of the spacial dimensions.
@@ -207,7 +207,7 @@ function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {
     end
        return states_bin , state_num
 end
-
+=#
 function bin_states(state::NTuple{DIMS2,Int64},dims::NTuple{DIMS,Int64},Nspecies::Int8) where {DIMS} where {DIMS2}
     Nspin=2
      bs=zeros(Int8,dims...,Nspecies,Nspin)
@@ -248,6 +248,7 @@ function SC_corr_operator(state::Array{Int8,DIMS2} , index_i::CartesianIndex{DIM
     return state_sp , co
 end
 
+
 function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,μ::Float64) where {DIMS2}
     
     dims = size(state)
@@ -263,7 +264,7 @@ function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,
     #hopping term 
     occupations = findall(x->x==1, state) # indices which are  occupied 
     for occupation in occupations
-        for dir in 1:spacial_dims
+        for dir in 1:length(spacial_dims)
             for lr in 1:2
                 index_i = occupation
                 index_j = hop(index_i,dir,lr,dims)
@@ -276,6 +277,52 @@ function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,
         end
     end
     return state_sp , co
+end
+
+
+function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
+    states =  build_states(spacial_dims,Num)
+    N=length(states)
+    state_num=Int64[]
+    for c in 1:N#state in states
+     state_c = states[c]
+         push!(state_num,packbits(state_c[:]))
+    end
+   
+    H_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
+    for i in 1:N 
+     state_i=states[i]
+         state_sp , co = hamiltonian_operator(state_i,t,U,μ)
+         for j in 1:length(state_sp)
+             state_j=state_sp[j]
+             index_j = findall(x->x==packbits(state_j[:]),state_num)
+             H_sub[i,index_j...]+=co[j]
+         end
+     end
+     return H_sub
+ end
+
+ function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {DIMS} where {DIMS2}
+    #Num is a vector of  number operators for the different types of electrons (classified by their specie and spin)
+    #dims is a vector of the spacial dimensions.
+    # returen all states in the sub-space of the Fock space 
+    num_sites=prod(dims) 
+    states=[] # TO DO -set type to integer
+    for Nsp in Num
+        st = [ones(Int8,Nsp);zeros(Int8,num_sites-Nsp)]
+        bit_combs=unique(permutations(st) )
+        num_comb = [] # TO DO -set type to integer
+        for bit_comb in bit_combs 
+            push!(num_comb,packbits(bit_comb)  )
+        end
+        push!(states,num_comb)
+    end
+    states_comb = collect(Iterators.product(states... ))[:]
+    states_bin=[]
+    for sc in states_comb
+        push!(states_bin,bin_states(sc,dims,Int8(length(Num)/2)))
+    end
+       return states_bin
 end
 
 function create(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
