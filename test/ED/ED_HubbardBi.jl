@@ -143,7 +143,7 @@ function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float6
     end
     return en_val  , nums
 end
-#=
+
 function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
 
    states , state_num =  build_states(spacial_dims,Num)
@@ -160,7 +160,7 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
     end
     return H_sub
 end
-=#
+
 function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIndex{DIMS} , index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2} 
 
     states ,state_num =  build_states(spacial_dims,Num)
@@ -178,7 +178,7 @@ function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIn
      end
      return SC_sub
  end
- #=
+ 
 function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {DIMS} where {DIMS2}
     #Num is a vector of  number operators for the different types of electrons (classified by their specie and spin)
     #dims is a vector of the spacial dimensions.
@@ -207,7 +207,7 @@ function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {
     end
        return states_bin , state_num
 end
-=#
+
 function bin_states(state::NTuple{DIMS2,Int64},dims::NTuple{DIMS,Int64},Nspecies::Int8) where {DIMS} where {DIMS2}
     Nspin=2
      bs=zeros(Int8,dims...,Nspecies,Nspin)
@@ -279,7 +279,7 @@ function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,
     return state_sp , co
 end
 
-
+#=
 function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
     states =  build_states(spacial_dims,Num)
     N=length(states)
@@ -301,7 +301,8 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
      end
      return H_sub
  end
-
+ =#
+#=
  function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {DIMS} where {DIMS2}
     #Num is a vector of  number operators for the different types of electrons (classified by their specie and spin)
     #dims is a vector of the spacial dimensions.
@@ -324,7 +325,7 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
     end
        return states_bin
 end
-
+=#
 function create(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
     # creation operator at (x,y,species,spin)
     new_state = copy(state)
