@@ -1,42 +1,29 @@
 using Base.Cartesian
 using BitBasis
 using Combinatorics
-#using Debugger
 using SparseArrays
 using Arpack
 using LinearAlgebra
 
 
-#spacial_dims=Int8(2)
-#num_spin=2;
-#num_species=2;
-#L_x=2;
-#L_y=1;
-#num_sites = L_x*L_y
-#num_n=num_spin*num_species*num_sites;
-#N=2^num_n;
-#t=1.0; 
-#U=1.0;
-#mu=1.0;
 
-## TO DO - assign types to all variables and functions
-function occupation_ed(specs,nums,temp::Float64)
+function occupation_ed(specs,Nₙs,temp::Float64)
 
-    N=length(nums)
-    occ=zeros(Float64,length(nums[1]))
+    N=length(Nₙs)
+    occ=zeros(Float64,length(Nₙs[1]))
     z=0.0
     for i in 1:N
-        num=nums[i]
+        Nₙ=Nₙs[i]
         bolzman=sum(exp.(-(1/temp).*specs[i]))
-        occ.+=bolzman.*num
+        occ.+=bolzman.*Nₙ
         z+=bolzman
     end
     return occ./z
 end
 
-function energy_ed(specs,nums,temp::Float64)
+function energy_ed(specs,Nₙs,temp::Float64)
 
-    N=length(nums)
+    N=length(Nₙs)
     enr=0.0
     z=0.0
     for i in 1:N   
@@ -46,41 +33,42 @@ function energy_ed(specs,nums,temp::Float64)
     return enr./z
 end
 
-function energy_obs(en_val::Vector{Float64} ,beta::Float64)
+function energy_obs(Dₙ::Vector{Float64} ,β::Float64)
 
-    D = Diagonal(en_val)
-    expD = Diagonal(exp.(-beta*en_val))
+    D = Diagonal(Dₙ)
+    expD = Diagonal(exp.(-β*Dₙ))
     enr = tr(D*expD)    
     return enr
 end
 
-function number_obs(en_val::Vector{Float64},num ,beta::Float64)
+function number_obs(Dₙ::Vector{Float64},Nₙ ,β::Float64)
 
-    D = Diagonal(en_val)
-    expD = Diagonal(exp.(-beta*en_val))
-    N=sum(num)
+    D = Diagonal(Dₙ)
+    expD = Diagonal(exp.(-β*Dₙ))
+    N=sum(Nₙ)
     enr = tr(N*expD)    
     return enr
 end
 
-function partition_obs(en_val::Vector{Float64} ,beta::Float64)
+function partition_obs(Dₙ::Vector{Float64} ,β::Float64)
 
-    expD = Diagonal(exp.(-beta*en_val))
+    expD = Diagonal(exp.(-β*Dₙ))
     par = tr(expD)    
     return par
 
 end
 
-function SC_corr_obs(spacial_dims::NTuple{DIMS2,Int64},index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS} , Num , en_val::Vector{Float64} , en_vec::Matrix{Float64} , beta::Float64) where {DIMS} where {DIMS2}
-    P = SC_corr_sub(spacial_dims,Num, index_i , index_j) 
-    Pd = en_vec'*P*en_vec
-    expD = Diagonal(exp.(-beta*en_val))
+function SC_corr_obs(spacial_dims::NTuple{DIMS2,Int64},index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS} , Nₙ , Dₙ::Vector{Float64} , Uₙ::Matrix{Float64} , β::Float64) where {DIMS} where {DIMS2}
+    P = SC_corr_sub(spacial_dims,Nₙ, index_i , index_j) 
+    Pd = Uₙ'*P*Uₙ
+    expD = Diagonal(exp.(-β*Dₙ))
     par = tr(Pd*expD)    
     return par
 end
 
 function SC_corr_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS} 
-    , Num , en_val::Vector{Float64} , en_vec::Matrix{Float64} , beta::Float64,taus::Vector{Float64} ) where {DIMS} where {DIMS2}
+    , Nₙ , Dₙ::Vector{Float64} , Uₙ::Matrix{Float64} , Nₘ , Dₘ::Vector{Float64} , Uₘ::Matrix{Float64}
+    , β::Float64,taus::Vector{Float64} ) where {DIMS} where {DIMS2}
     
     corr = zeros(Float64,length(taus))
     for c in 1:num_species
@@ -93,16 +81,16 @@ function SC_corr_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64,in
                 index_j_sp=CartesianIndex(index_i,c)
             end
 
-            Δᵢ⁺ = SC_create_sub(spacial_dims,Num, index_i_sp) 
-            Δⱼ  = SC_annihilate_sub(spacial_dims,Num, index_j_sp) 
-            Δᵢ⁺d = en_vec' *  Δᵢ⁺ * en_vec
-            Δⱼd =  en_vec' *  Δⱼ  * en_vec
+            Δᵢ⁺ = SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i_sp) 
+            Δⱼ  = SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j_sp) 
+            Δᵢ⁺d = Uₘ' *  Δᵢ⁺ * Uₙ
+            Δⱼd =  Uₙ' *  Δⱼ  * Uₘ
            
             for i in 1:length(taus)
-                tau=taus[i]
-                expD_beta = Diagonal(exp.(-(beta-tau)*en_val))
-                expD_tau = Diagonal(exp.(tau*en_val))
-                corr[i] += tr(expD_beta * Δⱼd * expD_tau * Δᵢ⁺d)                    
+                τ=taus[i]
+                e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ = Diagonal(exp.(-(β-τ)*Dₙ))
+                e⁻ᵀᴰᵐ =     Diagonal(exp.(-τ*Dₘ))
+                corr[i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼd * e⁻ᵀᴰᵐ * Δᵢ⁺d)                    
             end
 
         end
@@ -111,7 +99,8 @@ function SC_corr_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64,in
 end
 
 function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64
-    ,betas::Vector{Float64},taus::Vector{Float64}) where {DIMS}
+    ,βs::Vector{Float64},taus::Vector{Float64}) where {DIMS}
+   
     num_spin=2
     N_max=prod(spacial_dims)
     nt=0:N_max
@@ -120,30 +109,42 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
         push!(n,nt)
     end
     
-    nums=collect(Iterators.product(n...))[:]
-    b=length(betas)
+    Nₙs=collect(Iterators.product(n...))[:]
+    b=length(βs)
     tt=length(taus)
     partitions = zeros(Float64,b)
     energys = zeros(Float64,b)
-    numbers = zeros(Float64,b)
+    Nₙbers = zeros(Float64,b)
     SC_corrs=zeros(Float64,spacial_dims...,b)
     SC_corrs_tau=zeros(Float64,spacial_dims...,tt,b)
     
     
-    for num in nums 
-        for i in 1:b
-            beta=betas[i]      
-            ham=hamiltonian_sub(spacial_dims,num,t,U,μ)
-            en_val , en_vec = eigen(ham)
-            partitions[i] += partition_obs(en_val ,beta)
-            energys[i]    += energy_obs(en_val ,beta)
-            numbers[i]    += number_obs(en_val , num, beta)
+    for Nₙ in Nₙs 
+        for i in 1:b #runs over βs
+            β=βs[i] 
+            if !isempty(taus)
+                Nₘ =  (Nₙ[1]+1,Nₙ[2],Nₙ[3]+1,Nₙ[4])
+                Dₘ =[]
+                Uₘ=[]
+                if Nₘ in Nₙs
+                    Hₘ=hamiltonian_sub(spacial_dims,Nₘ,t,U,μ)
+                    Dₘ , Uₘ = eigen(Hₘ)
+                end
+            end
+            Hₙ=hamiltonian_sub(spacial_dims,Nₙ,t,U,μ)
+            Dₙ , Uₙ = eigen(Hₙ)
+            partitions[i] += partition_obs(Dₙ ,β)
+            energys[i]    += energy_obs(Dₙ ,β)
+            Nₙbers[i]    += number_obs(Dₙ , Nₙ, β)
             for   xt in 1:spacial_dims[1]
                 for yt  in 1:spacial_dims[2]
                     x=1
                     y=1
-                    SC_corrs[xt,yt,i]+=SC_corr_obs(spacial_dims,CartesianIndex(x,y) , CartesianIndex(xt,yt) , num , en_val , en_vec, beta)
-                    SC_corrs_tau[xt,yt,:,i]+=SC_corr_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) , num , en_val  , en_vec , beta,taus ) 
+                    SC_corrs[xt,yt,i]+=SC_corr_obs(spacial_dims,CartesianIndex(x,y) , CartesianIndex(xt,yt) , Nₙ , Dₙ , Uₙ, β)
+                    if !isempty(taus) && !isempty(Dₙ)
+                        SC_corrs_tau[xt,yt,:,i]+=SC_corr_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
+                        , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
+                    end
                 end
             end           
         end
@@ -153,7 +154,7 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
         SC_corrs[:,:,i] = SC_corrs[:,:,i]./partitions[i]
         SC_corrs_tau[:,:,:,i] = SC_corrs_tau[:,:,:,i]./partitions[i]
     end
-    return partitions, energys./partitions, numbers./partitions,SC_corrs, SC_corrs_tau
+    return partitions, energys./partitions, Nₙbers./partitions,SC_corrs, num_species*SC_corrs_tau
 end
 
 
@@ -165,21 +166,21 @@ function spectrum(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float6
     for i in 1:num_spin*num_species
         push!(n,nt)
     end
-    en_val=[]
-    #en_vec=[]
-    nums=collect(Iterators.product(n...))[:]
-    for num in nums
-        ham=hamiltonian_sub(spacial_dims,num,t,U,μ)
+    Dₙ=[]
+    #Uₙ=[]
+    Nₙs=collect(Iterators.product(n...))[:]
+    for Nₙ in Nₙs
+        ham=hamiltonian_sub(spacial_dims,Nₙ,t,U,μ)
         E=eigen(ham)
-        push!(en_val,E.values)
-        #push!(en_vec,E.vectors)
+        push!(Dₙ,E.values)
+        #push!(Uₙ,E.vectors)
     end
-    return en_val  , nums
+    return Dₙ  , Nₙs
 end
 
-function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Float64,μ::Float64) where {DIMS}
+function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Nₙ, t::Float64, U::Float64,μ::Float64) where {DIMS}
 
-   states , state_num =  build_states(spacial_dims,Num)
+   states , state_num =  build_states(spacial_dims,Nₙ)
    N=length(states)
    H_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
    for ket in 1:N  
@@ -194,9 +195,9 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Num, t::Float64, U::Fl
     return H_sub
 end
 
-function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIndex{DIMS} , index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2} 
+function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, index_i::CartesianIndex{DIMS} , index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2} 
 
-    states ,state_num =  build_states(spacial_dims,Num)
+    states ,state_num =  build_states(spacial_dims,Nₙ)
     N=length(states)
    
     SC_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
@@ -322,20 +323,18 @@ function SC_create_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIM
     return state_f , ex1*ex2   
 end
 
-function SC_create_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIndex{DIMS} ) where {DIMS} where {DIMS2} 
+function SC_create_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, Nₘ, index_i::CartesianIndex{DIMS} ) where {DIMS} where {DIMS2} 
 
-    states ,state_num =  build_states(spacial_dims,Num)
-    N=length(states)
-   
-    mat=zeros(Float64,N,N)#spzeros(Float64,N,N)
+    statesₙ ,state_numₙ =  build_states(spacial_dims,Nₙ)
+    statesₘ ,state_numₘ =  build_states(spacial_dims,Nₘ)
+    N=length(statesₙ)
+    M=length(statesₘ)
+    mat=zeros(Float64,M,N)#spzeros(Float64,N,N)
     for ket in 1:N  
-     state_ket=states[ket]
-         state_sp , co = SC_create_operatr(state_ket,index_i)
-         #for j in 1:length(state_sp)
-             state_bra=state_sp#[j]
-             bra = findall(x->x==packbits(state_bra[:]),state_num)
-             mat[ket,bra].+=co#[j]
-        # end
+        state_ket=statesₙ[ket]
+        state_bra , co = SC_create_operatr(state_ket,index_i)
+        bra = findall(x->x==packbits(state_bra[:]),state_numₘ)
+        mat[bra,ket].+=co
      end
      return mat
  end
@@ -351,20 +350,18 @@ function SC_annihilate_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex
     return state_f , ex1*ex2   
 end
 
-function SC_annihilate_sub(spacial_dims::NTuple{DIMS2,Int64},Num, index_i::CartesianIndex{DIMS} ) where {DIMS} where {DIMS2} 
+function SC_annihilate_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, Nₘ, index_i::CartesianIndex{DIMS} ) where {DIMS} where {DIMS2} 
 
-    states ,state_num =  build_states(spacial_dims,Num)
-    N=length(states)
-   
-    mat=zeros(Float64,N,N)#spzeros(Float64,N,N)
+    statesₙ ,state_numₙ =  build_states(spacial_dims,Nₙ)
+    statesₘ ,state_numₘ =  build_states(spacial_dims,Nₘ)
+    N=length(statesₙ)
+    M=length(statesₘ)
+    mat=zeros(Float64,M,N)#spzeros(Float64,N,N)
     for ket in 1:N  
-     state_ket=states[ket]
-         state_sp , co = SC_annihilate_operatr(state_ket,index_i)
-         #for j in 1:length(state_sp)
-             state_bra=state_sp#[j]
-             bra = findall(x->x==packbits(state_bra[:]),state_num)
-             mat[ket,bra].+=co#[j]
-         #end
+        state_ket=statesₙ[ket]
+        state_bra , co = SC_annihilate_operatr(state_ket,index_i)
+        bra = findall(x->x==packbits(state_bra[:]),state_numₘ)
+        mat[bra,ket].+=co
      end
      return mat
  end
@@ -383,35 +380,35 @@ end
 
 function build_states(dims::NTuple{DIMS,Int64}) where {DIMS}#(N,L_x,L_y,num_species,num_spin)
     # returen all states in the Fock space,  each state is reshaped to a an array of dims=(L_x,L_y,num_spin,num_species)
-    num_n=prod(dims)
-    N=2^num_n
+    Nₙ_n=prod(dims)
+    N=2^Nₙ_n
     states=[];
     for c in 0:N-1
-        state = dec2bin(c,num_n)
+        state = dec2bin(c,Nₙ_n)
         push!(states,reshape(state , dims...))
     end
     return states
 end
 
-function build_states(dims::NTuple{DIMS,Int64},Num::NTuple{DIMS2,Int64}) where {DIMS} where {DIMS2}
-    #Num is a vector of  number operators for the different types of electrons (classified by their specie and spin)
+function build_states(dims::NTuple{DIMS,Int64},Nₙ::NTuple{DIMS2,Int64}) where {DIMS} where {DIMS2}
+    #Nₙ is a vector of  Nₙber operators for the different types of electrons (classified by their specie and spin)
     #dims is a vector of the spacial dimensions.
     # returen all states in the sub-space of the Fock space 
-    num_sites=prod(dims) 
+    Nₙ_sites=prod(dims) 
     states=[] # TO DO -set type to integer
-    for Nsp in Num
-        st = [ones(Int8,Nsp);zeros(Int8,num_sites-Nsp)]
+    for Nsp in Nₙ
+        st = [ones(Int8,Nsp);zeros(Int8,Nₙ_sites-Nsp)]
         bit_combs=unique(permutations(st) )
-        num_comb = [] # TO DO -set type to integer
+        Nₙ_comb = Int64[] 
         for bit_comb in bit_combs 
-            push!(num_comb,packbits(bit_comb)  )
+            push!(Nₙ_comb,packbits(bit_comb)  )
         end
-        push!(states,num_comb)
+        push!(states,Nₙ_comb)
     end
     states_comb = collect(Iterators.product(states... ))[:]
     states_bin=[]
     for sc in states_comb
-        push!(states_bin,bin_states(sc,dims,Int8(length(Num)/2)))
+        push!(states_bin,bin_states(sc,dims,Int8(length(Nₙ)/2)))
     end
     state_num=Int64[]
     N=length(states_bin)
