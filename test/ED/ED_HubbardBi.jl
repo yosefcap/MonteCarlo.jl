@@ -141,7 +141,7 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
                     x=1
                     y=1
                     SC_corrs[xt,yt,i]+=SC_corr_obs(spacial_dims,CartesianIndex(x,y) , CartesianIndex(xt,yt) , Nₙ , Dₙ , Uₙ, β)
-                    if !isempty(taus) && !isempty(Dₙ)
+                    if !isempty(taus) && !isempty(Dₘ)
                         SC_corrs_tau[xt,yt,:,i]+=SC_corr_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
                         , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
                     end
