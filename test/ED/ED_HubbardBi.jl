@@ -66,7 +66,7 @@ function SC_corr_obs(spacial_dims::NTuple{DIMS2,Int64},index_i::CartesianIndex{D
     return par
 end
 
-function SC_corr_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS} 
+function SC_corr_sw_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS} 
     , Nₙ , Dₙ::Vector{Float64} , Uₙ::Matrix{Float64} , Nₘ , Dₘ::Vector{Float64} , Uₘ::Matrix{Float64}
     , β::Float64,taus::Vector{Float64} ) where {DIMS} where {DIMS2}
     
@@ -84,13 +84,69 @@ function SC_corr_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64,in
             Δᵢ⁺ = SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i_sp) 
             Δⱼ  = SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j_sp) 
             Δᵢ⁺d = Uₘ' *  Δᵢ⁺ * Uₙ
-            Δⱼd =  Uₙ' *  Δⱼ  * Uₘ
+            Δⱼd =  Uₙ' *  Δⱼ  * Uₘ   
            
             for i in 1:length(taus)
                 τ=taus[i]
-                e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ = Diagonal(exp.(-(β-τ)*Dₙ))
+                e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ = Diagonal(exp.(-(β-τ).*Dₙ))
                 e⁻ᵀᴰᵐ =     Diagonal(exp.(-τ*Dₘ))
-                corr[i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼd * e⁻ᵀᴰᵐ * Δᵢ⁺d)                    
+                corr[i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼd * e⁻ᵀᴰᵐ * Δᵢ⁺d)                     
+            end
+
+        end
+    end
+    return corr
+end
+
+function SC_corr_dw_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64,rᵢ::CartesianIndex{DIMS},rⱼ::CartesianIndex{DIMS} 
+    , Nₙ , Dₙ::Vector{Float64} , Uₙ::Matrix{Float64} , Nₘ , Dₘ::Vector{Float64} , Uₘ::Matrix{Float64}
+    , β::Float64,taus::Vector{Float64} ) where {DIMS} where {DIMS2}
+    
+    dims = (spacial_dims... ,num_species)
+    corr = zeros(Float64,length(taus))
+    for c in 1:num_species
+        for g in 1:2
+            if g==1
+                index_i_sp=CartesianIndex(rᵢ,c) #(index_i...,c)#
+                index_j_sp=CartesianIndex(rⱼ,c) #(index_j...,c)#
+            else
+                index_i_sp=CartesianIndex(rⱼ,c) #for the hemition conjugate of ΔᵢΔⱼ^† 
+                index_j_sp=CartesianIndex(rᵢ,c)
+            end
+            Δᵢ⁺=[]
+            Δⱼ=[]
+            Δᵢ⁺d=[]
+            Δⱼd=[]
+            η=0.0
+            for dir in 1:length(spacial_dims)
+                for lr in 1:2
+                    index_i = index_i_sp 
+                    index_iₓ = hop(index_i,dir,lr,dims)                    
+                    index_j = index_j_sp
+                    index_jₓ = hop(index_j,dir,lr,dims)
+                    lr==1 ? η=0.25 : η=-0.25   
+                    if  (dir==1 && lr==1) #!isempty(Δᵢ⁺)
+                        Δᵢ⁺ = η.*SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₓ)# c^†_{index_i,↑} c^†_{index_iₓ,↓} 
+                        Δᵢ⁺ += η.* SC_create_sub(spacial_dims,Nₙ,Nₘ, index_iₓ,index_i)# c^†_{index_iₓ,↑} c^†_{index_i,↓} 
+                        Δⱼ  = η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jₓ) # c_{index_j,↓} c^_{index_jₓ,↑}
+                        Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_jₓ,index_j) # c_{index_jₓ,↓} c^_{index_j,↑}
+                    else
+                        Δᵢ⁺ += η.*SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₓ)# c^†_{index_i,↑} c^†_{index_iₓ,↓} 
+                        Δᵢ⁺ += η.* SC_create_sub(spacial_dims,Nₙ,Nₘ, index_iₓ,index_i)# c^†_{index_iₓ,↑} c^†_{index_i,↓} 
+                        Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jₓ) # c_{index_j,↓} c^_{index_jₓ,↑}
+                        Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_jₓ,index_j) # c_{index_jₓ,↓} c^_{index_j,↑}
+                    end
+                end
+            end
+
+            Δᵢ⁺d = Uₘ' *  Δᵢ⁺ * Uₙ
+            Δⱼd =  Uₙ' *  Δⱼ  * Uₘ   
+           
+            for i in 1:length(taus)
+                τ=taus[i]
+                e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ = Diagonal(exp.(-(β-τ).*Dₙ))
+                e⁻ᵀᴰᵐ =     Diagonal(exp.(-τ*Dₘ))
+                corr[i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼd * e⁻ᵀᴰᵐ * Δᵢ⁺d)                     
             end
 
         end
@@ -114,9 +170,10 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
     tt=length(taus)
     partitions = zeros(Float64,b)
     energys = zeros(Float64,b)
-    Nₙbers = zeros(Float64,b)
+    numbers = zeros(Float64,b)
     SC_corrs=zeros(Float64,spacial_dims...,b)
-    SC_corrs_tau=zeros(Float64,spacial_dims...,tt,b)
+    sw_tau=zeros(Float64,spacial_dims...,tt,b)
+    dw_tau=zeros(Float64,spacial_dims...,tt,b)
     
     
     for Nₙ in Nₙs 
@@ -135,14 +192,16 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
             Dₙ , Uₙ = eigen(Hₙ)
             partitions[i] += partition_obs(Dₙ ,β)
             energys[i]    += energy_obs(Dₙ ,β)
-            Nₙbers[i]    += number_obs(Dₙ , Nₙ, β)
+            numbers[i]    += number_obs(Dₙ , Nₙ, β)
             for   xt in 1:spacial_dims[1]
                 for yt  in 1:spacial_dims[2]
                     x=1
                     y=1
                     SC_corrs[xt,yt,i]+=SC_corr_obs(spacial_dims,CartesianIndex(x,y) , CartesianIndex(xt,yt) , Nₙ , Dₙ , Uₙ, β)
                     if !isempty(taus) && !isempty(Dₘ)
-                        SC_corrs_tau[xt,yt,:,i]+=SC_corr_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
+                        sw_tau[xt,yt,:,i]+=SC_corr_sw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
+                        , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
+                        dw_tau[xt,yt,:,i]+=SC_corr_dw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
                         , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
                     end
                 end
@@ -152,9 +211,10 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
 
     for i in 1:b
         SC_corrs[:,:,i] = SC_corrs[:,:,i]./partitions[i]
-        SC_corrs_tau[:,:,:,i] = SC_corrs_tau[:,:,:,i]./partitions[i]
+        sw_tau[:,:,:,i] = sw_tau[:,:,:,i]./partitions[i]
+        dw_tau[:,:,:,i] = dw_tau[:,:,:,i]./partitions[i]
     end
-    return partitions, energys./partitions, Nₙbers./partitions,SC_corrs, num_species*SC_corrs_tau
+    return partitions, energys./partitions, numbers./partitions,SC_corrs, sw_tau, dw_tau
 end
 
 
@@ -182,7 +242,7 @@ function hamiltonian_sub(spacial_dims::NTuple{DIMS,Int64},Nₙ, t::Float64, U::F
 
    states , state_num =  build_states(spacial_dims,Nₙ)
    N=length(states)
-   H_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
+   H_sub=zeros(Float64,N,N)
    for ket in 1:N  
         state_ket=states[ket]
         state_sp , co = hamiltonian_operator(state_ket,t,U,μ)
@@ -200,7 +260,7 @@ function SC_corr_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, index_i::CartesianI
     states ,state_num =  build_states(spacial_dims,Nₙ)
     N=length(states)
    
-    SC_sub=zeros(Float64,N,N)#spzeros(Float64,N,N)
+    SC_sub=zeros(Float64,N,N)
     for ket in 1:N  
      state_ket=states[ket]
          state_sp , co = SC_corr_operator(state_ket,index_i,index_j)
@@ -323,6 +383,17 @@ function SC_create_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIM
     return state_f , ex1*ex2   
 end
 
+function SC_create_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
+    #sc operator c^†_{index_i,↑} c^†_{index_j,↓} where   index_i=(x_i,y_i,species_i) 
+    up_s   = CartesianIndex(index_i,1) 
+    down_s = CartesianIndex(index_j,2)
+
+     state_temp , ex1 = create(state,down_s)
+    ex2=0
+    ex1 == 0 ? state_f = state_temp : (state_f , ex2) = create(state_temp, up_s)
+    return state_f , ex1*ex2   
+end
+
 function SC_create_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, Nₘ, index_i::CartesianIndex{DIMS} ) where {DIMS} where {DIMS2} 
 
     statesₙ ,state_numₙ =  build_states(spacial_dims,Nₙ)
@@ -333,6 +404,22 @@ function SC_create_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, Nₘ, index_i::Ca
     for ket in 1:N  
         state_ket=statesₙ[ket]
         state_bra , co = SC_create_operatr(state_ket,index_i)
+        bra = findall(x->x==packbits(state_bra[:]),state_numₘ)
+        mat[bra,ket].+=co
+     end
+     return mat
+ end
+
+ function SC_create_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, Nₘ, index_i::CartesianIndex{DIMS}, index_j::CartesianIndex{DIMS} ) where {DIMS} where {DIMS2} 
+    # matrix representation of the operator c^†_{index_i,↑} c^†_{index_j,↓} where   index_i=(x_i,y_i,species_i)
+    statesₙ ,state_numₙ =  build_states(spacial_dims,Nₙ)
+    statesₘ ,state_numₘ =  build_states(spacial_dims,Nₘ)
+    N=length(statesₙ)
+    M=length(statesₘ)
+    mat=zeros(Float64,M,N)
+    for ket in 1:N  
+        state_ket=statesₙ[ket]
+        state_bra , co = SC_create_operatr(state_ket,index_i,index_j)
         bra = findall(x->x==packbits(state_bra[:]),state_numₘ)
         mat[bra,ket].+=co
      end
@@ -350,6 +437,16 @@ function SC_annihilate_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex
     return state_f , ex1*ex2   
 end
 
+function SC_annihilate_operatr(state::Array{Int8,DIMS2} ,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
+    #sc operator c_{index_i,↓} c^_{index_j,↑} where   index_i=(x_i,y_i,species_i) 
+    up_s   = CartesianIndex(index_j,1) 
+    down_s = CartesianIndex(index_i,2)
+    ex2=0
+    state_temp , ex1 = annihilate(state,up_s)
+    ex1 == 0 ? state_f = state_temp : (state_f , ex2) = annihilate(state_temp, down_s)
+    return state_f , ex1*ex2   
+end
+
 function SC_annihilate_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, Nₘ, index_i::CartesianIndex{DIMS} ) where {DIMS} where {DIMS2} 
 
     statesₙ ,state_numₙ =  build_states(spacial_dims,Nₙ)
@@ -360,6 +457,22 @@ function SC_annihilate_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, Nₘ, index_i
     for ket in 1:N  
         state_ket=statesₙ[ket]
         state_bra , co = SC_annihilate_operatr(state_ket,index_i)
+        bra = findall(x->x==packbits(state_bra[:]),state_numₘ)
+        mat[bra,ket].+=co
+     end
+     return mat
+ end
+
+ function SC_annihilate_sub(spacial_dims::NTuple{DIMS2,Int64},Nₙ, Nₘ, index_i::CartesianIndex{DIMS}, index_j::CartesianIndex{DIMS} ) where {DIMS} where {DIMS2} 
+
+    statesₙ ,state_numₙ =  build_states(spacial_dims,Nₙ)
+    statesₘ ,state_numₘ =  build_states(spacial_dims,Nₘ)
+    N=length(statesₙ)
+    M=length(statesₘ)
+    mat=zeros(Float64,M,N)#spzeros(Float64,N,N)
+    for ket in 1:N  
+        state_ket=statesₙ[ket]
+        state_bra , co = SC_annihilate_operatr(state_ket,index_i,index_j)
         bra = findall(x->x==packbits(state_bra[:]),state_numₘ)
         mat[bra,ket].+=co
      end
