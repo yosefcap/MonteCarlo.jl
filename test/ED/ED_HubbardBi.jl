@@ -158,6 +158,9 @@ end
 function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Float64, U::Float64,μ::Float64
     ,βs::Vector{Float64},taus::Vector{Float64}) where {DIMS}
    
+    if length(spacial_dims)==2 && spacial_dims[2]==1
+        spacial_dims=(spacial_dims[1],) 
+    end
     num_spin=2
     N_max=prod(spacial_dims)
     nt=0:N_max
@@ -320,7 +323,7 @@ function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,
     #hopping term 
     occupations = findall(x->x==1, state) # indices which are  occupied 
     for occupation in occupations
-        for dir in 1:spacial_dims
+        for dir in 1:spacial_dims 
             for lr in 1:2
                 index_i = occupation
                 index_j = hop(index_i,dir,lr,dims)
