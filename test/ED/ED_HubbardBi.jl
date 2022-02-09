@@ -65,7 +65,7 @@ function SC_corr_obs(spacial_dims::NTuple{DIMS2,Int64},index_i::CartesianIndex{D
     expD = Diagonal(exp.(-β*Dₙ))
     par = tr(Pd*expD)    
     return par
-end
+end 
 
 function SC_corr_sw_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64,index_i::CartesianIndex{DIMS},index_j::CartesianIndex{DIMS} 
     , Nₙ , Dₙ::Vector{Float64} , Uₙ::Matrix{Float64} , Nₘ , Dₘ::Vector{Float64} , Uₘ::Matrix{Float64}
@@ -320,7 +320,7 @@ function hamiltonian_operator(state::Array{Int8,DIMS2} ,  t::Float64,U::Float64,
     #hopping term 
     occupations = findall(x->x==1, state) # indices which are  occupied 
     for occupation in occupations
-        for dir in 1:length(spacial_dims)
+        for dir in 1:spacial_dims
             for lr in 1:2
                 index_i = occupation
                 index_j = hop(index_i,dir,lr,dims)
