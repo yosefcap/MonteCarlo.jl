@@ -4,6 +4,7 @@ using Combinatorics
 using SparseArrays
 using Arpack
 using LinearAlgebra
+using Plots
 
 
 
@@ -23,7 +24,7 @@ end
 
 function energy_ed(specs,Nₙs,temp::Float64)
 
-    N=length(Nₙs)
+    N=length(Nₙs) 
     enr=0.0
     z=0.0
     for i in 1:N   
@@ -115,8 +116,8 @@ function SC_corr_dw_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64
             end
             Δᵢ⁺=[]
             Δⱼ=[]
-            Δᵢ⁺d=[]
-            Δⱼd=[]
+           # Δᵢ⁺d=[]
+           # Δⱼd=[]
             η=0.0
             for dir in 1:length(spacial_dims)
                 for lr in 1:2
@@ -126,9 +127,9 @@ function SC_corr_dw_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64
                     index_jₓ = hop(index_j,dir,lr,dims)
                     lr==1 ? η=0.25 : η=-0.25   
                     if  (dir==1 && lr==1) #!isempty(Δᵢ⁺)
-                        Δᵢ⁺ = η.*SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₓ)# c^†_{index_i,↑} c^†_{index_iₓ,↓} 
+                        Δᵢ⁺  = η.*SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₓ)# c^†_{index_i,↑} c^†_{index_iₓ,↓} 
                         Δᵢ⁺ += η.* SC_create_sub(spacial_dims,Nₙ,Nₘ, index_iₓ,index_i)# c^†_{index_iₓ,↑} c^†_{index_i,↓} 
-                        Δⱼ  = η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jₓ) # c_{index_j,↓} c^_{index_jₓ,↑}
+                        Δⱼ   = η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jₓ) # c_{index_j,↓} c^_{index_jₓ,↑}
                         Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_jₓ,index_j) # c_{index_jₓ,↓} c^_{index_j,↑}
                     else
                         Δᵢ⁺ += η.*SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₓ)# c^†_{index_i,↑} c^†_{index_iₓ,↓} 
@@ -198,12 +199,12 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
                     x=1
                     y=1
                     SC_corrs[xt,yt,i]+=SC_corr_obs(spacial_dims,CartesianIndex(x,y) , CartesianIndex(xt,yt) , Nₙ , Dₙ , Uₙ, β)
-                    if !isempty(taus) && !isempty(Dₘ)
-                        sw_tau[xt,yt,:,i]+=SC_corr_sw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
-                        , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
-                        dw_tau[xt,yt,:,i]+=SC_corr_dw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
-                        , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
-                    end
+                   # if !isempty(taus) && !isempty(Dₘ)
+                    #    sw_tau[xt,yt,:,i]+=SC_corr_sw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
+                     #   , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
+                   #     dw_tau[xt,yt,:,i]+=SC_corr_dw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
+                      #  , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
+                   # end
                 end
             end           
         end
@@ -343,7 +344,7 @@ function create(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS}) where {DI
         ex = check_fermion_comm(state ,index)#1
     end
         return new_state , ex
-end
+end 
 
 function annihilate(state::Array{Int8,DIMS2} ,index::CartesianIndex{DIMS}) where {DIMS} where {DIMS2}
     # annihilation operator at (x,y,spin,species)
