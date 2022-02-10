@@ -104,53 +104,47 @@ function SC_corr_dw_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64
     , β::Float64,taus::Vector{Float64} ) where {DIMS} where {DIMS2}
     
     dims = (spacial_dims... ,num_species)
-    corr = zeros(Float64,length(taus))
+    corr = zeros(Float64,2,2,length(taus))
     for c in 1:num_species
-        for g in 1:2
-            if g==1
-                index_i_sp=CartesianIndex(rᵢ,c) #(index_i...,c)#
-                index_j_sp=CartesianIndex(rⱼ,c) #(index_j...,c)#
-            else
-                index_i_sp=CartesianIndex(rⱼ,c) #for the hemition conjugate of ΔᵢΔⱼ^† 
-                index_j_sp=CartesianIndex(rᵢ,c)
-            end
-            Δᵢ⁺=[]
-            Δⱼ=[]
-           # Δᵢ⁺d=[]
-           # Δⱼd=[]
-            η=0.0
-            for dir in 1:length(spacial_dims)
-                for lr in 1:2
-                    index_i = index_i_sp 
-                    index_iₓ = hop(index_i,dir,lr,dims)                    
-                    index_j = index_j_sp
-                    index_jₓ = hop(index_j,dir,lr,dims)
-                    lr==1 ? η=0.25 : η=-0.25   
-                    if  (dir==1 && lr==1) #!isempty(Δᵢ⁺)
-                        Δᵢ⁺  = η.*SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₓ)# c^†_{index_i,↑} c^†_{index_iₓ,↓} 
-                        Δᵢ⁺ += η.* SC_create_sub(spacial_dims,Nₙ,Nₘ, index_iₓ,index_i)# c^†_{index_iₓ,↑} c^†_{index_i,↓} 
-                        Δⱼ   = η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jₓ) # c_{index_j,↓} c^_{index_jₓ,↑}
-                        Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_jₓ,index_j) # c_{index_jₓ,↓} c^_{index_j,↑}
-                    else
-                        Δᵢ⁺ += η.*SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₓ)# c^†_{index_i,↑} c^†_{index_iₓ,↓} 
-                        Δᵢ⁺ += η.* SC_create_sub(spacial_dims,Nₙ,Nₘ, index_iₓ,index_i)# c^†_{index_iₓ,↑} c^†_{index_i,↓} 
-                        Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jₓ) # c_{index_j,↓} c^_{index_jₓ,↑}
-                        Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_jₓ,index_j) # c_{index_jₓ,↓} c^_{index_j,↑}
-                    end
-                end
-            end
 
-            Δᵢ⁺d = Uₘ' *  Δᵢ⁺ * Uₙ
-            Δⱼd =  Uₙ' *  Δⱼ  * Uₘ   
-           
-            for i in 1:length(taus)
-                τ=taus[i]
-                e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ = Diagonal(exp.(-(β-τ).*Dₙ))
-                e⁻ᵀᴰᵐ =     Diagonal(exp.(-τ*Dₘ))
-                corr[i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼd * e⁻ᵀᴰᵐ * Δᵢ⁺d)                     
-            end
-
+        index_i_sp=CartesianIndex(rᵢ,c) #(index_i...,c)#
+        index_j_sp=CartesianIndex(rⱼ,c) #(index_j...,c)#            
+        Δᵢₕ⁺ = []
+        Δᵢᵥ⁺ = []
+        Δⱼₕ  = []
+        Δⱼᵥ = []        
+            
+        index_i = index_i_sp 
+        index_iₕ = hop(index_i,1,1,dims) # hop right (x direction)
+        index_iᵥ = hop(index_i,2,1,dims) # hop up    (y direction)  
+        index_j = index_j_sp
+        index_jₕ = hop(index_j,1,1,dims) # hop right (x direction)
+        index_jᵥ = hop(index_j,2,1,dims) # hop up    (y direction) 
+                    
+        Δᵢₕ⁺  = SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₕ)# c^†_{index_i,↑} c^†_{index_iₕ,↓} 
+        Δᵢₕ⁺ += SC_create_sub(spacial_dims,Nₙ,Nₘ, index_iₕ,index_i)# c^†_{index_iₕ,↑} c^†_{index_i,↓} 
+        Δⱼₕ   = SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jₕ) # c_{index_j,↓} c^_{index_jₕ,↑}
+        Δⱼₕ  += SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_jₕ,index_j) # c_{index_jₕ,↓} c^_{index_j,↑}
+        Δᵢᵥ⁺  = SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iᵥ)# c^†_{index_i,↑} c^†_{index_iᵥ,↓}
+        Δᵢᵥ⁺ += SC_create_sub(spacial_dims,Nₙ,Nₘ, index_iᵥ,index_i)# c^†_{index_iᵥ,↑} c^†_{index_i,↓} 
+        Δⱼᵥ   = SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jᵥ) # c_{index_j,↓} c^_{index_jᵥ,↑}
+        Δⱼᵥ += SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_jᵥ,index_j) # c_{index_jᵥ,↓} c^_{index_j,↑}
+     
+        Δᵢₕ⁺d  = Uₘ' *  Δᵢₕ⁺ * Uₙ
+        Δᵢᵥ⁺d = Uₘ' *  Δᵢᵥ⁺ * Uₙ
+        Δⱼₕd  =  Uₙ' *  Δⱼₕ  * Uₘ 
+        Δⱼᵥd  =  Uₙ' *  Δⱼᵥ  * Uₘ     
+                       
+        for i in 1:length(taus)
+            τ=taus[i]
+            e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ = Diagonal(exp.(-(β-τ).*Dₙ))
+            e⁻ᵀᴰᵐ =     Diagonal(exp.(-τ*Dₘ))
+            corr[1,1,i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼₕd * e⁻ᵀᴰᵐ * Δᵢₕ⁺d)
+            corr[1,2,i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼₕd * e⁻ᵀᴰᵐ * Δᵢᵥ⁺d)
+            corr[2,1,i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼᵥd * e⁻ᵀᴰᵐ * Δᵢₕ⁺d)
+            corr[2,2,i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼᵥd * e⁻ᵀᴰᵐ * Δᵢᵥ⁺d)                     
         end
+
     end
     return corr
 end
@@ -177,7 +171,7 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
     numbers = zeros(Float64,b)
     SC_corrs=zeros(Float64,spacial_dims...,b)
     sw_tau=zeros(Float64,spacial_dims...,tt,b)
-    dw_tau=zeros(Float64,spacial_dims...,tt,b)
+    dw_tau=zeros(Float64,spacial_dims...,2,2,tt,b)
     
     
     for Nₙ in Nₙs 
@@ -202,12 +196,14 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
                     x=1
                     y=1
                     SC_corrs[xt,yt,i]+=SC_corr_obs(spacial_dims,CartesianIndex(x,y) , CartesianIndex(xt,yt) , Nₙ , Dₙ , Uₙ, β)
-                   # if !isempty(taus) && !isempty(Dₘ)
-                    #    sw_tau[xt,yt,:,i]+=SC_corr_sw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
-                     #   , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
-                   #     dw_tau[xt,yt,:,i]+=SC_corr_dw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
-                      #  , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
-                   # end
+                    if !isempty(taus) && !isempty(Dₘ)
+                        sw_tau[xt,yt,:,i]+=SC_corr_sw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
+                        , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
+                        if length(spacial_dims)>1
+                            dw_tau[xt,yt,:,:,:,i]+=SC_corr_dw_tau_obs(spacial_dims,num_species,CartesianIndex(x,y),CartesianIndex(xt,yt) 
+                            , Nₙ , Dₙ  , Uₙ , Nₘ , Dₘ  , Uₘ , β,taus ) 
+                        end
+                    end
                 end
             end           
         end
@@ -547,4 +543,61 @@ function bin_states(state::NTuple{DIMS2,Int64},dims::NTuple{DIMS,Int64},Nspecies
     return bs
 end
 
+#=
+function SC_corr_dw_tau_obs(spacial_dims::NTuple{DIMS2,Int64},num_species::Int64,rᵢ::CartesianIndex{DIMS},rⱼ::CartesianIndex{DIMS} 
+    , Nₙ , Dₙ::Vector{Float64} , Uₙ::Matrix{Float64} , Nₘ , Dₘ::Vector{Float64} , Uₘ::Matrix{Float64}
+    , β::Float64,taus::Vector{Float64} ) where {DIMS} where {DIMS2}
+    
+    dims = (spacial_dims... ,num_species)
+    corr = zeros(Float64,length(taus))
+    for c in 1:num_species
+        for g in 1:2
+            if g==1
+                index_i_sp=CartesianIndex(rᵢ,c) #(index_i...,c)#
+                index_j_sp=CartesianIndex(rⱼ,c) #(index_j...,c)#
+            else
+                index_i_sp=CartesianIndex(rⱼ,c) #for the hemition conjugate of ΔᵢΔⱼ^† 
+                index_j_sp=CartesianIndex(rᵢ,c)
+            end
+            Δᵢ⁺=[]
+            Δⱼ=[]
+           # Δᵢ⁺d=[]
+           # Δⱼd=[]
+            η=0.0
+            for dir in 1:length(spacial_dims)
+                for lr in 1:2
+                    index_i = index_i_sp 
+                    index_iₓ = hop(index_i,dir,lr,dims)                    
+                    index_j = index_j_sp
+                    index_jₓ = hop(index_j,dir,lr,dims)
+                    lr==1 ? η=0.25 : η=-0.25   
+                    if  (dir==1 && lr==1) #!isempty(Δᵢ⁺)
+                        Δᵢ⁺  = η.*SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₓ)# c^†_{index_i,↑} c^†_{index_iₓ,↓} 
+                        Δᵢ⁺ += η.* SC_create_sub(spacial_dims,Nₙ,Nₘ, index_iₓ,index_i)# c^†_{index_iₓ,↑} c^†_{index_i,↓} 
+                        Δⱼ   = η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jₓ) # c_{index_j,↓} c^_{index_jₓ,↑}
+                        Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_jₓ,index_j) # c_{index_jₓ,↓} c^_{index_j,↑}
+                    else
+                        Δᵢ⁺ += η.*SC_create_sub(spacial_dims,Nₙ,Nₘ, index_i,index_iₓ)# c^†_{index_i,↑} c^†_{index_iₓ,↓} 
+                        Δᵢ⁺ += η.* SC_create_sub(spacial_dims,Nₙ,Nₘ, index_iₓ,index_i)# c^†_{index_iₓ,↑} c^†_{index_i,↓} 
+                        Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_j,index_jₓ) # c_{index_j,↓} c^_{index_jₓ,↑}
+                        Δⱼ  += η.*SC_annihilate_sub(spacial_dims,Nₘ,Nₙ, index_jₓ,index_j) # c_{index_jₓ,↓} c^_{index_j,↑}
+                    end
+                end
+            end
+
+            Δᵢ⁺d = Uₘ' *  Δᵢ⁺ * Uₙ
+            Δⱼd =  Uₙ' *  Δⱼ  * Uₘ   
+           
+            for i in 1:length(taus)
+                τ=taus[i]
+                e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ = Diagonal(exp.(-(β-τ).*Dₙ))
+                e⁻ᵀᴰᵐ =     Diagonal(exp.(-τ*Dₘ))
+                corr[i] += tr(e⁻⁽ᵝ⁻ᵀ⁾ᴰⁿ * Δⱼd * e⁻ᵀᴰᵐ * Δᵢ⁺d)                     
+            end
+
+        end
+    end
+    return corr
+end
+=#
 
