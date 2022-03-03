@@ -166,14 +166,14 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
     
     Nₙs=collect(Iterators.product(n...))[:]
     # define for the case of num_species=1, update later to general case 
-    if (num_species==1)
-        for Nₙ in Nₙs
-            if Nₙ[1]!=Nₙ[2]
-                Nₙ_temp=(Nₙ[2],Nₙ[1])
-                deleteat!(Nₙs,Nₙs.==Nₙ_temp)
-            end
-        end
-    end
+    #if (num_species==1)
+    #    for Nₙ in Nₙs
+    #        if Nₙ[1]!=Nₙ[2]
+    #            Nₙ_temp=(Nₙ[2],Nₙ[1])
+    #            deleteat!(Nₙs,Nₙs.==Nₙ_temp)
+    #        end
+    #    end
+    #end
     b=length(βs)
     tt=length(taus)
     partitions = zeros(Float64,b)
@@ -185,8 +185,13 @@ function observables(spacial_dims::NTuple{DIMS,Int64},num_species::Int64, t::Flo
     
     
     for Nₙ in Nₙs 
-        for i in 1:b #runs over βs
+        for i in 1:b #runs over βs            
             β=βs[i] 
+            binos = binomial.(N_max,Nₙ)
+            weight  = prod(binos)*exp(-β*μ*(sum(Nₙ)-1))
+            if weight<10^(-5)
+                break
+            end
             if !isempty(taus)                
                 Nₘ =  zeros(Int64,length(Nₙ))
                 for i in 1:length(Nₘ)
